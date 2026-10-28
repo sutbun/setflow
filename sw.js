@@ -1,5 +1,5 @@
-const CACHE="setflow-mvp-v6";
-const ASSETS=["./","./index.html","./style.css","./app.js","./manifest.webmanifest","./icon.svg"];
+const CACHE="setflow-mvp-v7";
+const ASSETS=["./","./index.html","./style.css?v=dev-10.29-5","./app.js?v=dev-10.29-5","./manifest.webmanifest","./icon.svg"];
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
 });
