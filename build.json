@@ -1,5 +1,5 @@
 {
-  "version": "DEV-10.29-5",
+  "version": "DEV-10.29-6",
   "build": "2026-10-29",
-  "description": "Cache-safe app asset versioning and update check"
+  "description": "Fix iPhone Safari history date switcher overlap"
 }
