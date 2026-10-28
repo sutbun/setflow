@@ -39,3 +39,10 @@ Google Sheetはデータ保存先の一つであり、**サーバーから端末
 - iPhone実機での検証は必要です。
 
 共通開発ルール: https://github.com/sutbun/ai-dev
+
+## PWAの更新
+- 設定画面の「アプリの更新を確認」で `build.json` の最新版を確認する。
+- HTMLが参照するJavaScript/CSSにはバージョンクエリを付加し、旧キャッシュにより古い画面が残るのを防止する。
+- 初回の更新はSafariで `https://sutbun.github.io/setflow/?v=dev-10.29-5` を開く。
+- Googleの接続状態は再起動時に失効することがあるが、端末の記録を消す必要はない。
+- リリース時は `APP_VERSION`、`build.json`、HTMLの資産クエリ、SWのキャッシュ識別子を揃えて更新する。
