@@ -4,7 +4,7 @@ const seed=()=>({exercises:[{id:"bench",name:"ベンチプレス",rest:90},{id:"
 let data;try{data=JSON.parse(localStorage.getItem(KEY))||seed();if(!Array.isArray(data.exercises)||!Array.isArray(data.records))data=seed()}catch{data=seed()}
 let tab="train",notified=false;
 const SHEET_ID="1ie5gs_68OGtXD_4XBfF-SI70JowQhkMIku_e5QIWV20";
-const APP_VERSION="DEV-10.29-1";
+const APP_VERSION="DEV-10.29-2";
 let googleToken="", tokenExpiry=0, syncing=false, syncAgain=false, syncError="";
 let gisLoadPromise=null;
 const connected=()=>googleToken&&Date.now()<tokenExpiry-60000;
@@ -17,11 +17,11 @@ const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(data));return true}c
 const ex=()=>data.exercises.find(x=>x.id===data.selected)||data.exercises[0];
 const last=id=>[...data.records].reverse().find(r=>r.exerciseId===id);
 const today=id=>data.records.filter(r=>r.exerciseId===id&&new Date(r.at).toDateString()===new Date().toDateString());
-const timerHtml=()=>data.timer?'<section class="card"><div class="muted">インターバル</div><div id="clock" class="clock">--:--</div><div class="actions"><button data-action="less">−15秒</button><button data-action="more">＋15秒</button><button data-action="stop">終了</button></div><p class="warning">画面ロック中の音・通知は保証されません。再表示時に正しい残り時間へ更新します。</p></section>':"";
+const timerHtml=()=>data.timer?'<section class="card timer-card"><div id="clock" class="clock" role="timer" aria-label="インターバルの残り時間">--:--</div><div class="actions"><button data-action="less">−15秒</button><button data-action="more">＋15秒</button><button data-action="stop">終了</button></div></section>':"";
 function render(){
  document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
- if(tab==="train"){const x=ex();if(!x){el.innerHTML='<h1>トレーニング</h1>'+syncBannerHtml()+'<button data-action="add">＋ 種目を追加</button>'+timerHtml();return}
- const prev=last(x.id),sets=today(x.id);el.innerHTML='<h1>トレーニング</h1>'+syncBannerHtml()+'<section class="card"><label>種目<select id="exercise">'+data.exercises.map(z=>'<option value="'+esc(z.id)+'" '+(z.id===x.id?"selected":"")+'>'+esc(z.name)+'</option>').join("")+'</select></label><div class="row"><p class="muted">今日 '+sets.length+' セット</p><button data-action="edit">種目設定</button></div><div class="fields"><label>重量 (kg)<input id="weight" type="number" min="0" max="2000" step="0.5" inputmode="decimal" value="'+(prev?prev.weight:0)+'"></label><label>回数<input id="reps" type="number" min="1" max="500" step="1" inputmode="numeric" value="'+(prev?prev.reps:10)+'"></label></div><button class="primary" data-action="complete">✓ セット完了・休憩開始</button><p class="muted">休憩 '+fmt(x.rest)+' ・前回値を再利用</p></section>'+timerHtml()+'<section class="card"><h2>今日の記録</h2>'+(sets.map((r,i)=>'<div class="row item"><span>'+(i+1)+'セット目　'+r.weight+' kg × '+r.reps+' 回</span><button data-action="undo" data-id="'+esc(r.id)+'">取消</button></div>').join("")||'<p class="muted">まだ記録がありません</p>')+'</section>';
+ if(tab==="train"){const x=ex();if(!x){el.innerHTML=syncBannerHtml()+'<button data-action="add">＋ 種目を追加</button>'+timerHtml();return}
+ const prev=last(x.id),sets=today(x.id);el.innerHTML=syncBannerHtml()+'<section class="card train-card"><select id="exercise" aria-label="種目">'+data.exercises.map(z=>'<option value="'+esc(z.id)+'" '+(z.id===x.id?"selected":"")+'>'+esc(z.name)+'</option>').join("")+'</select><div class="row train-meta"><span class="muted">今日 '+sets.length+' セット · 休憩 '+fmt(x.rest)+'</span><button data-action="edit">種目設定</button></div><div class="fields"><label>重量 (kg)<input id="weight" type="number" min="0" max="2000" step="0.5" inputmode="decimal" value="'+(prev?prev.weight:0)+'"></label><label>回数<input id="reps" type="number" min="1" max="500" step="1" inputmode="numeric" value="'+(prev?prev.reps:10)+'"></label></div><button class="primary" data-action="complete">✓ セット完了・休憩開始</button></section>'+timerHtml()+'<section class="card record-card"><h2>今日の記録</h2>'+(sets.map((r,i)=>'<div class="row item"><span>'+(i+1)+'セット目　'+r.weight+' kg × '+r.reps+' 回</span><button data-action="undo" data-id="'+esc(r.id)+'">取消</button></div>').join("")||'<p class="muted">まだ記録がありません</p>')+'</section>';
  }else if(tab==="history"){el.innerHTML='<h1>履歴</h1>' + ([...data.records].reverse().map(r=>'<div class="card"><strong>'+esc(r.exerciseName)+'</strong><p>'+r.weight+' kg × '+r.reps+' 回</p><span class="muted">'+new Date(r.at).toLocaleString("ja-JP")+'</span></div>').join("")||'<p class="muted">記録がありません</p>')}
  else{el.innerHTML='<h1>設定</h1><section class="card"><h2>種目</h2>'+data.exercises.map(x=>'<div class="row item"><span>'+esc(x.name)+'<br><small class="muted">休憩 '+fmt(x.rest)+'</small></span><button data-action="editid" data-id="'+esc(x.id)+'">編集</button></div>').join("")+'<p><button data-action="add">＋ 種目追加</button></p></section><section class="card"><h2>バックアップ</h2><p class="warning">端末内に記録を保存します。サイトデータの消去に備えてJSONバックアップを保管してください。</p><button data-action="export">JSONを書き出す</button><p><label>バックアップを復元<input id="import" type="file" accept=".json,application/json"></label></p></section>'+syncSettingsHtml()}
  tick();
@@ -43,6 +43,7 @@ function syncSummary(){
  return n?"未同期 "+n+" 件":"Googleに同期済み";
 }
 function syncBannerHtml(){
+ if(unsynced()===0)return "";
  const action=!getClientId()?"show-settings":!connected()?"google-connect":unsynced()?"google-sync":null;
  const label=action==="show-settings"?"設定":action==="google-sync"?"同期":"再接続";
  return '<section id="sync-banner" class="sync-banner"><span>'+esc(syncSummary())+'</span>'+
