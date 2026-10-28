@@ -1,19 +1,41 @@
 # SetFlow
 
-iPhone向け筋トレ記録PWA。Mac不要、GitHub Pagesで配信します。
+iPhone用の筋トレ記録PWA。MacBookやApple Developer Programなしで動作します。
 
-## MVP
-- 種目別の重量・回数・休憩秒数を記録
-- 前回の重量と回数を再利用
-- セット完了で保存し、休憩タイマー開始
-- 休憩時間±15秒調整
-- 履歴、JSONバックアップと復元
-- オフラインキャッシュ（初回接続後）
+## 主な機能
+- 種目、重量、回数、休憩時間の設定
+- 「セット完了」で記録を端末内に保存、休憩タイマー即開始
+- 設定した休憩時間のカウントダウン、±15秒調整
+- 前回の重量・回数、今日の記録、履歴
+- JSONファイルによるバックアップと復元
+- Google Sheetsへのオンライン同期と再接続
+- iPhoneホーム画面から起動、基本操作はオフラインでも可能
 
-## 公開
-GitHub → Settings → Pages → Deploy from a branch → main / (root)。公開後 https://sutbun.github.io/setflow/ をiPhone Safariで開き、共有 → ホーム画面に追加。
+## 公開とインストール
+GitHub Settings → Pages → Deploy from a branch → main / (root)。
 
-## 注意
-記録は端末のlocalStorage内にのみ保存され、端末間で同期しません。画面ロック中の正確な通知音は保証しません。データ消去に備えてJSONバックアップを定期的に作成してください。
+https://sutbun.github.io/setflow/
 
-開発規約: https://github.com/sutbun/ai-dev
+Safari → 共有 → ホーム画面に追加。
+
+## Google Sheets 同期
+個人の Google Sheets（記録タブ）へ追記する構成。端末上に記録をまず保存してから同期します。
+
+1. Google CloudでGoogle Sheets APIを有効化
+2. Google OAuthのWebクライアントを作成し、承認済みJavaScript生成元に `https://sutbun.github.io` を登録
+3. 「設定」でOAuthクライアントIDを一度入力してGoogle接続
+4. 接続中はセット完了時、オンライン復帰時、アプリ再表示時に未送信を同期
+5. Google認証が失効した場合、トレーニング画面の「再接続」を押すと再認証でき、未同期分が送信されます
+
+OAuthトークンは**メモリ内でのみ保持**し、localStorageに長期保存しません。Google Identity Servicesのブラウザー用トークン方式は、ページ再起動・トークン失効後に利用者操作なしでは再認証できないため、再接続はタップ操作が必要です（Googleの公式仕様）。
+
+Google Sheetはデータ保存先の一つであり、**サーバーから端末への記録復元や種目設定の双方向同期は未実装**。端末内のJSONバックアップを定期的に取ってください。端末内で取り消した同期済みセットはSheetの行に自動反映されません。
+
+## 更新と注意
+- Google Sheetsへの同期はインターネットとGoogleの許可が必要。同期できなくてもタイマーと端末内保存は動きます。
+- 端末のWebサイトデータ削除でローカル記録が消えることがあります。
+- 画面ロック中の音・振動は保証しません。
+- トレーニング画面の再接続は認証が切れた時だけ利用してください。
+- iPhone実機での検証は必要です。
+
+共通開発ルール: https://github.com/sutbun/ai-dev
