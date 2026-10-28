@@ -3,3 +3,22 @@
 /* Compact training view. */
 .train-card{margin-top:0}.train-card #exercise{min-height:52px}.train-meta{margin-top:8px;min-height:40px}.train-meta button{padding:10px 12px}.train-meta .muted{line-height:1.4}.timer-card{padding:14px 12px}.timer-card .actions button{min-height:44px}.record-card{margin-top:10px}
 @media(max-width:359px){.train-meta .muted{font-size:12px}.train-meta button{font-size:13px;padding:9px}.timer-card .actions{gap:6px}}
+
+/* History: date-first navigation and compact exercise groups */
+.history-nav{display:grid;grid-template-columns:52px minmax(0,1fr) 52px;gap:8px;align-items:center;margin:4px 0 8px}
+.history-arrow{height:54px;padding:0;font-size:36px;line-height:1;background:#263951;border:1px solid #405572}
+.history-arrow:disabled{opacity:.25;cursor:default}
+.history-date-input{height:54px;min-width:0;padding:8px 12px;font-size:clamp(16px,4.6vw,20px);font-weight:700;text-align:center;background:#19253a;border-color:#344a67;max-width:100%;color:#f4f6fc}
+.history-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#a4b5ce;font-size:13px;margin:0 2px 12px;min-height:22px}
+.history-latest{padding:6px 10px;font-size:12px;background:#283c5d}
+.history-exercise{padding:14px 16px;margin:9px 0}
+.history-exercise-heading{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:5px}
+.history-exercise-heading h2{margin:0;font-size:18px;overflow-wrap:anywhere}
+.history-exercise-heading .muted{white-space:nowrap}
+.history-set{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid #32425c;font-size:17px}
+.history-set:last-child{border-bottom:0}
+.history-set-index{width:25px;text-align:center;font-size:13px;color:#a4b5ce;flex:none}
+.history-set-detail{font-variant-numeric:tabular-nums}
+.history-set-detail strong{font-weight:650}
+.history-set-multiply{padding:0 10px;color:#a4b5ce}
+.history-empty{color:#a4b5ce;text-align:center;font-size:14px;padding:34px 10px}
