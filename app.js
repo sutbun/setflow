@@ -4,7 +4,7 @@ const seed=()=>({exercises:[{id:"bench",name:"ベンチプレス",rest:90},{id:"
 let data;try{data=JSON.parse(localStorage.getItem(KEY))||seed();if(!Array.isArray(data.exercises)||!Array.isArray(data.records))data=seed()}catch{data=seed()}
 let tab="train",notified=false,historyDate=null;
 const SHEET_ID="1ie5gs_68OGtXD_4XBfF-SI70JowQhkMIku_e5QIWV20";
-const APP_VERSION="DEV-10.29-4";
+const APP_VERSION="DEV-10.29-5";
 let googleToken="", tokenExpiry=0, syncing=false, syncAgain=false, syncError="";
 let gisLoadPromise=null;
 const connected=()=>googleToken&&Date.now()<tokenExpiry-60000;
@@ -68,7 +68,7 @@ el.addEventListener("click",e=>{const b=e.target.closest("[data-action]");if(!b)
  const selected=historyDate||days[0];
  const next=a==="history-latest"?days[0]:a==="history-older"?days.find(day=>day<selected):[...days].reverse().find(day=>day>selected);
  if(next){historyDate=next;render()}return;
-}if(a==="add")edit();if(a==="edit")edit(ex()?.id);if(a==="editid")edit(b.dataset.id);if(a==="complete"){const x=ex(),wi=document.getElementById("weight"),ri=document.getElementById("reps");if(!x||!wi.value||!ri.value)return;const w=Number(wi.value),r=Number(ri.value);if(!Number.isFinite(w)||w<0||w>2000||!Number.isInteger(r)||r<1||r>500){alert("重量・回数を確認してください");return}b.disabled=true;data.records.push({id:crypto.randomUUID(),exerciseId:x.id,exerciseName:x.name,weight:w,reps:r,restSeconds:x.rest,at:new Date().toISOString()});data.timer=x.rest>0?{end:Date.now()+x.rest*1000}:null;notified=false;save();render();if(connected())syncToSheet().catch(console.warn)}if(a==="stop"){data.timer=null;save();render()}if(a==="more"||a==="less"){data.timer.end+=(a==="more"?15000:-15000);notified=false;save();tick()}if(a==="undo"){if(!confirm("このセットを取り消しますか？\n同期済みの場合、スプレッドシートの行は残ります。"))return;data.records=data.records.filter(x=>x.id!==b.dataset.id);save();render()}if(a==="google-connect"){connectGoogle()}if(a==="google-sync"){if(!connected())connectGoogle();else syncToSheet().catch(err=>{syncError=err.message;updateSyncUI()})}if(a==="export"){const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const u=URL.createObjectURL(blob),link=document.createElement("a");link.href=u;link.download="setflow-backup.json";link.click();setTimeout(()=>URL.revokeObjectURL(u),3000)}});
+}if(a==="add")edit();if(a==="edit")edit(ex()?.id);if(a==="editid")edit(b.dataset.id);if(a==="complete"){const x=ex(),wi=document.getElementById("weight"),ri=document.getElementById("reps");if(!x||!wi.value||!ri.value)return;const w=Number(wi.value),r=Number(ri.value);if(!Number.isFinite(w)||w<0||w>2000||!Number.isInteger(r)||r<1||r>500){alert("重量・回数を確認してください");return}b.disabled=true;data.records.push({id:crypto.randomUUID(),exerciseId:x.id,exerciseName:x.name,weight:w,reps:r,restSeconds:x.rest,at:new Date().toISOString()});data.timer=x.rest>0?{end:Date.now()+x.rest*1000}:null;notified=false;save();render();if(connected())syncToSheet().catch(console.warn)}if(a==="stop"){data.timer=null;save();render()}if(a==="more"||a==="less"){data.timer.end+=(a==="more"?15000:-15000);notified=false;save();tick()}if(a==="undo"){if(!confirm("このセットを取り消しますか？\n同期済みの場合、スプレッドシートの行は残ります。"))return;data.records=data.records.filter(x=>x.id!==b.dataset.id);save();render()}if(a==="check-update"){checkAppUpdate()}if(a==="google-connect"){connectGoogle()}if(a==="google-sync"){if(!connected())connectGoogle();else syncToSheet().catch(err=>{syncError=err.message;updateSyncUI()})}if(a==="export"){const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const u=URL.createObjectURL(blob),link=document.createElement("a");link.href=u;link.download="setflow-backup.json";link.click();setTimeout(()=>URL.revokeObjectURL(u),3000)}});
 function tick(){if(!data.timer)return;const node=document.getElementById("clock");if(!node)return;const left=data.timer.end-Date.now();node.textContent=fmt(left/1000);if(left<=0&&!notified){notified=true;try{navigator.vibrate?.([150,100,150]);const A=window.AudioContext||window.webkitAudioContext;if(A){const ctx=new A(),o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.value=.07;o.start();o.stop(ctx.currentTime+.2);o.onended=()=>ctx.close()}}catch{}}}
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});document.addEventListener("visibilitychange",()=>{if(!document.hidden){tick();updateSyncUI();trySync()}});window.addEventListener("online",trySync);
 setInterval(tick,250);setInterval(updateSyncUI,30000);render();
@@ -91,8 +91,8 @@ function syncSettingsHtml(){
  '<label>Google Cloud OAuthクライアントID<input id="google-client-id" type="text" autocomplete="off" value="'+esc(getClientId())+'" placeholder="1234-abc.apps.googleusercontent.com"></label>'+
  '<p class="muted" id="sync-status">'+esc(syncSummary())+'</p>'+
  '<div class="actions"><button data-action="google-connect">Googleで接続 / 再接続</button><button data-action="google-sync">今すぐ同期</button></div>'+
- '<p class="warning">セット完了時は端末内に保存し、Google接続中に自動同期します。期限切れ時はトレーニング画面の「再接続」を押してください。</p></section>'+
- '<p class="muted" style="text-align:center">Version '+APP_VERSION+'</p>';
+ '<p class="warning">セット完了時は端末内に保存し、Google接続中に自動同期します。期限切れ時は「Googleで接続」を押してください。</p></section>'+
+ '<section class="app-update"><button type="button" data-action="check-update">アプリの更新を確認</button><p class="muted" id="app-version">Version '+APP_VERSION+'</p></section>';
 }
 function loadGIS(){
  if(window.google?.accounts?.oauth2)return Promise.resolve();
@@ -166,4 +166,29 @@ async function syncToSheet(){
   syncing=false;updateSyncUI();
   if(syncAgain){syncAgain=false;trySync()}
  }
+}
+
+async function checkAppUpdate(){
+ if(!navigator.onLine){alert("インターネット接続後に再試行してください");return}
+ const button=document.querySelector('[data-action="check-update"]');
+ if(button){button.disabled=true;button.textContent="更新を確認中…"}
+ try{
+  // 毎回一意のURLで取得。以前のキャッシュ優先Service Workerにも対応。
+  const url="./build.json?check="+Date.now();
+  const response=await fetch(url,{cache:"no-store"});
+  if(!response.ok)throw Error("最新版の確認に失敗しました（HTTP "+response.status+"）");
+  const latest=await response.json();
+  if(!latest.version||typeof latest.version!=="string")throw Error("更新情報を取得できませんでした");
+  if(latest.version===APP_VERSION){alert("現在、最新版（"+APP_VERSION+"）です");return}
+  if(!confirm("新しいバージョン "+latest.version+" に更新しますか？"))return;
+  try{
+   const registration=await navigator.serviceWorker?.getRegistration();
+   await registration?.update();
+  }catch(e){console.warn("Service Worker更新の確認に失敗:",e)}
+  // ローカルデータを消さず、HTMLとJS/CSSの新しい版を取得する。
+  const newUrl=new URL("./",window.location.href);
+  newUrl.searchParams.set("app-update",String(Date.now()));
+  window.location.replace(newUrl.href);
+ }catch(e){alert(e.message||"更新の確認に失敗しました")}
+ finally{if(button){button.disabled=false;button.textContent="アプリの更新を確認"}}
 }
