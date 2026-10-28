@@ -8,7 +8,10 @@
 .history-nav{display:grid;grid-template-columns:52px minmax(0,1fr) 52px;gap:8px;align-items:center;margin:4px 0 8px}
 .history-arrow{height:54px;padding:0;font-size:36px;line-height:1;background:#263951;border:1px solid #405572}
 .history-arrow:disabled{opacity:.25;cursor:default}
-.history-date-input{height:54px;min-width:0;padding:8px 12px;font-size:clamp(16px,4.6vw,20px);font-weight:700;text-align:center;background:#19253a;border-color:#344a67;max-width:100%;color:#f4f6fc}
+.history-date-picker{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;width:100%;height:54px;padding:0 8px;border-radius:12px;border:1px solid #344a67;background:#19253a;overflow:hidden;cursor:pointer}
+.history-date-display{display:block;max-width:100%;white-space:nowrap;overflow:hidden;font-size:clamp(16px,4.8vw,20px);font-weight:700;line-height:1.2;color:#f4f6fc;font-variant-numeric:tabular-nums;pointer-events:none}
+.history-date-input{position:absolute;inset:0;display:block;width:100%;height:100%;min-width:0;max-width:100%;margin:0;padding:0;border:0;opacity:0;cursor:pointer;z-index:1;-webkit-appearance:none;appearance:none}
+.history-date-picker:focus-within{outline:2px solid #80a1ff;outline-offset:2px}
 .history-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#a4b5ce;font-size:13px;margin:0 2px 12px;min-height:22px}
 .history-latest{padding:6px 10px;font-size:12px;background:#283c5d}
 .history-exercise{padding:14px 16px;margin:9px 0}
