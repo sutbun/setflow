@@ -4,7 +4,7 @@ const seed=()=>({exercises:[{id:"bench",name:"ベンチプレス",rest:90},{id:"
 let data;try{data=JSON.parse(localStorage.getItem(KEY))||seed();if(!Array.isArray(data.exercises)||!Array.isArray(data.records))data=seed()}catch{data=seed()}
 let tab="train",notified=false,historyDate=null;
 const SHEET_ID="1ie5gs_68OGtXD_4XBfF-SI70JowQhkMIku_e5QIWV20";
-const APP_VERSION="DEV-10.29-5";
+const APP_VERSION="DEV-10.29-6";
 let googleToken="", tokenExpiry=0, syncing=false, syncAgain=false, syncError="";
 let gisLoadPromise=null;
 const connected=()=>googleToken&&Date.now()<tokenExpiry-60000;
@@ -41,7 +41,7 @@ const historyRows=()=>{
  }
  const navigation='<div class="history-nav">'+
  '<button type="button" class="history-arrow" data-action="history-older" aria-label="前の記録日" '+(!older?"disabled":"")+'>&lsaquo;</button>'+
- '<input id="history-date" class="history-date-input" type="date" aria-label="表示する日付" value="'+esc(selected)+'">'+
+ '<label class="history-date-picker"><span class="history-date-display" aria-hidden="true">'+esc(selected.replace(/-/g,"/"))+'</span><input id="history-date" class="history-date-input" type="date" aria-label="表示する日付" value="'+esc(selected)+'"></label>'+
  '<button type="button" class="history-arrow" data-action="history-newer" aria-label="次の記録日" '+(!newer?"disabled":"")+'>&rsaquo;</button></div>';
  const summary='<div class="history-summary">'+groups.size+'種目 · '+onDate.length+'セット'+
  (selected!==days[0]?'<button class="history-latest" data-action="history-latest">最新の日付へ</button>':"")+'</div>';
