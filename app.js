@@ -39,7 +39,7 @@ function syncSettingsHtml(){
 }
 async function connectGoogle(){
  const clientId=(document.getElementById("google-client-id")?.value||getClientId()).trim();
- if(!/^\\d+-[\\w-]+\\.apps\\.googleusercontent\\.com$/.test(clientId)){alert("Webアプリ用のOAuthクライアントIDを入力してください");return}
+ if(!/^[0-9]+-[a-zA-Z0-9_-]+[.]apps[.]googleusercontent[.]com$/.test(clientId)){alert("Webアプリ用のOAuthクライアントIDを入力してください");return}
  localStorage.setItem("setflow-google-client-id",clientId);
  if(!window.google?.accounts?.oauth2){
   await new Promise((resolve,reject)=>{const s=document.createElement("script");s.src="https://accounts.google.com/gsi/client";s.onload=resolve;s.onerror=()=>reject(new Error("Google認証が読み込めません"));document.head.appendChild(s)});
