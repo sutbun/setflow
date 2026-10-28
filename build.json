@@ -1,0 +1,5 @@
+{
+  "version": "DEV-10.29-5",
+  "build": "2026-10-29",
+  "description": "Cache-safe app asset versioning and update check"
+}
