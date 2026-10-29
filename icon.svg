@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="105" fill="#101827"/><rect x="85" y="229" width="342" height="54" rx="20" fill="#80a1ff"/><rect x="111" y="179" width="54" height="154" rx="14" fill="#f4f6fc"/><rect x="347" y="179" width="54" height="154" rx="14" fill="#f4f6fc"/><rect x="68" y="207" width="36" height="98" rx="12" fill="#f4f6fc"/><rect x="408" y="207" width="36" height="98" rx="12" fill="#f4f6fc"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-label="SetFlow">
+<defs><filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="7" stdDeviation="9" flood-color="#929292" flood-opacity=".32"/></filter></defs>
+<rect width="512" height="512" fill="#e3e2e3"/>
+<g filter="url(#shadow)">
+<rect x="140" y="232" width="232" height="52" rx="9" fill="#eeeeee"/>
+<rect x="147" y="239" width="218" height="34" rx="5" fill="#f7f7f7"/>
+<rect x="103" y="153" width="69" height="204" rx="18" fill="#f7f7f7"/>
+<rect x="340" y="153" width="69" height="204" rx="18" fill="#f7f7f7"/>
+<rect x="64" y="194" width="42" height="122" rx="16" fill="#f9f9f9"/>
+<rect x="406" y="194" width="42" height="122" rx="16" fill="#f9f9f9"/>
+</g></svg>

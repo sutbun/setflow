@@ -1,5 +1,5 @@
-const CACHE="setflow-mvp-v8";
-const ASSETS=["./","./index.html","./style.css?v=dev-10.29-6","./app.js?v=dev-10.29-6","./manifest.webmanifest","./icon.svg"];
+const CACHE="setflow-mvp-v9";
+const ASSETS=["./","./index.html","./style.css?v=dev-10.30-1","./app.js?v=dev-10.30-1","./manifest.webmanifest","./icon.svg?v=dev-10.30-1","./apple-touch-icon-20261030.png"];
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
 });

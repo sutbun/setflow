@@ -4,7 +4,7 @@ const seed=()=>({exercises:[{id:"bench",name:"ベンチプレス",rest:90},{id:"
 let data;try{data=JSON.parse(localStorage.getItem(KEY))||seed();if(!Array.isArray(data.exercises)||!Array.isArray(data.records))data=seed()}catch{data=seed()}
 let tab="train",notified=false,historyDate=null;
 const SHEET_ID="1ie5gs_68OGtXD_4XBfF-SI70JowQhkMIku_e5QIWV20";
-const APP_VERSION="DEV-10.29-6";
+const APP_VERSION="DEV-10.30-1";
 let googleToken="", tokenExpiry=0, syncing=false, syncAgain=false, syncError="";
 let gisLoadPromise=null;
 const connected=()=>googleToken&&Date.now()<tokenExpiry-60000;
