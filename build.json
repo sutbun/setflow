@@ -1,5 +1,5 @@
 {
-  "version": "DEV-10.30-2",
+  "version": "DEV-10.30-3",
   "build": "2026-10-30",
-  "description": "Match pure-white home-screen background (#FFFFFF) on SetFlow icon"
+  "description": "Repair corrupted icon PNG, verified checksum, white background"
 }
