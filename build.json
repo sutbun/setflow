@@ -1,5 +1,5 @@
 {
-  "version": "DEV-10.30-3",
+  "version": "DEV-10.30-4",
   "build": "2026-10-30",
-  "description": "Repair corrupted icon PNG, verified checksum, white background"
+  "description": "Restore existing workout history from Google Sheets on synchronization"
 }
