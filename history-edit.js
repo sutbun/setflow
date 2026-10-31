@@ -63,6 +63,7 @@ window.SetFlowHistory=(()=>{
    if(!Number.isFinite(localDate.getTime())||dayOf(localDate.toISOString())!==day){alert("日付・時刻を確認してください");return true}
    const at=(day===dayOf(r.at)&&time===timeOf(r.at))?r.at:localDate.toISOString();
    Object.assign(r,{weight:w,reps:n,exerciseId,exerciseName:exercise.name,at,dirty:true,localEditAt:Date.now()});
+   db().records.sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
    editingId=null;api.setDate(dayOf(at));
    if(api.save()){api.refresh();if(api.connected())api.sync()}return true;
   }
