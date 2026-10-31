@@ -1,5 +1,5 @@
 {
-  "version": "DEV-10.31-9",
+  "version": "DEV-10.31-10",
   "build": "2026-10-31",
-  "description": "Match today's set numbers to history's compact numbered rows"
+  "description": "Undo toast disappears after 8 seconds or when navigating; deleted records remain recoverable"
 }
