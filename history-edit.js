@@ -39,7 +39,7 @@ window.SetFlowHistory=(()=>{
   if(action==="restore"){
    const r=db().records.find(x=>x.id===id&&x.deletedAt);
    if(!r)return true;
-   r.deletedAt=null;r.dirty=true;
+   r.deletedAt=null;r.dirty=true;r.localEditAt=Date.now();
    db().deletedRecordIds=(db().deletedRecordIds||[]).filter(x=>x!==id);
    lastDeleted=null;api.setDate(dayOf(r.at));
    if(api.save()){api.refresh();if(api.connected())api.sync()}return true;
@@ -48,7 +48,7 @@ window.SetFlowHistory=(()=>{
   if(!r)return true;
   if(action==="delete"){
    if(!confirm("このセットを削除しますか？\n"+confirmText(r)+"\n削除しても設定画面から復元できます。"))return true;
-   r.deletedAt=new Date().toISOString();r.dirty=true;lastDeleted=r.id;editingId=null;
+   r.deletedAt=new Date().toISOString();r.dirty=true;r.localEditAt=Date.now();lastDeleted=r.id;editingId=null;
    if(api.save()){api.refresh();if(api.connected())api.sync()}return true;
   }
   if(action==="save"){
@@ -62,7 +62,7 @@ window.SetFlowHistory=(()=>{
    const localDate=new Date(day+"T"+time+":00");
    if(!Number.isFinite(localDate.getTime())||dayOf(localDate.toISOString())!==day){alert("日付・時刻を確認してください");return true}
    const at=(day===dayOf(r.at)&&time===timeOf(r.at))?r.at:localDate.toISOString();
-   Object.assign(r,{weight:w,reps:n,exerciseId,exerciseName:exercise.name,at,dirty:true});
+   Object.assign(r,{weight:w,reps:n,exerciseId,exerciseName:exercise.name,at,dirty:true,localEditAt:Date.now()});
    editingId=null;api.setDate(dayOf(at));
    if(api.save()){api.refresh();if(api.connected())api.sync()}return true;
   }
