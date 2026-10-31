@@ -1,5 +1,5 @@
 {
-  "version": "DEV-10.31-3",
+  "version": "DEV-10.31-4",
   "build": "2026-10-31",
-  "description": "Edit workout history and recover deleted workout and body composition records"
+  "description": "Bulk edit mode for workout history, add sets, compact fields and protected deletes"
 }
