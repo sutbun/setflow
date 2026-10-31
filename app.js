@@ -4,7 +4,7 @@ const seed=()=>({exercises:[{id:"bench",name:"ベンチプレス",rest:90},{id:"
 let data;try{data=JSON.parse(localStorage.getItem(KEY))||seed();if(!Array.isArray(data.exercises)||!Array.isArray(data.records))data=seed()}catch{data=seed()}
 let tab="train",notified=false,historyDate=null;
 const SHEET_ID="1ie5gs_68OGtXD_4XBfF-SI70JowQhkMIku_e5QIWV20";
-const APP_VERSION="DEV-10.31-3";
+const APP_VERSION="DEV-10.31-4";
 let googleToken="", tokenExpiry=0, syncing=false, syncAgain=false, syncError="";
 let lastCloudCheck=0, restoredThisSession=0;
 let gisLoadPromise=null;
@@ -28,30 +28,31 @@ const recordDay=timestamp=>{
 };
 const recordedDays=()=>[...new Set(data.records.filter(r=>!r.deletedAt).map(r=>recordDay(r.at)).filter(Boolean))].sort().reverse();
 const historyRows=()=>{
- const days=recordedDays();
- if(!days.length){historyDate=null;return window.SetFlowHistory.renderBanner()+'<div class="history-empty">まだ記録がありません</div>'}
- if(!historyDate)historyDate=days[0];
- const selected=historyDate;
- const older=days.find(d=>d<selected);
- const newer=[...days].reverse().find(d=>d>selected);
- const onDate=data.records.filter(r=>!r.deletedAt&&recordDay(r.at)===selected).sort((a,b)=>new Date(a.at)-new Date(b.at));
+ const dates=recordedDays();
+ if(!historyDate)historyDate=dates[0]||recordDay(new Date().toISOString());
+ const selected=historyDate,mode=window.SetFlowHistory.isEditing();
+ const older=dates.find(day=>day<selected),newer=[...dates].reverse().find(day=>day>selected);
+ const onDate=data.records.filter(r=>!r.deletedAt&&recordDay(r.at)===selected).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
+ const visible=window.SetFlowHistory.currentRows(onDate);
  const groups=new Map();
- for(const r of onDate){
-  const key=r.exerciseId||r.exerciseName;
-  if(!groups.has(key))groups.set(key,{name:r.exerciseName||data.exercises.find(e=>e.id===r.exerciseId)?.name||"種目未設定",records:[]});
+ for(const r of visible){
+  const key=r.exerciseId||r.exerciseName||"unknown";
+  if(!groups.has(key))groups.set(key,{name:data.exercises.find(e=>e.id===key)?.name||r.exerciseName||"種目未設定",records:[]});
   groups.get(key).records.push(r);
  }
- const navigation='<div class="history-nav">'+
- '<button type="button" class="history-arrow" data-action="history-older" aria-label="前の記録日" '+(!older?"disabled":"")+'>&lsaquo;</button>'+
- '<label class="history-date-picker"><span class="history-date-display" aria-hidden="true">'+esc(selected.replace(/-/g,"/"))+'</span><input id="history-date" class="history-date-input" type="date" aria-label="表示する日付" value="'+esc(selected)+'"></label>'+
- '<button type="button" class="history-arrow" data-action="history-newer" aria-label="次の記録日" '+(!newer?"disabled":"")+'>&rsaquo;</button></div>';
- const summary=window.SetFlowHistory.renderBanner()+'<div class="history-summary">'+groups.size+'種目 · '+onDate.length+'セット'+
- (selected!==days[0]?'<button class="history-latest" data-action="history-latest">最新の日付へ</button>':"")+'</div>';
- if(!onDate.length)return navigation+summary+'<p class="history-empty">この日の記録はありません。左右の矢印で記録がある日に移動できます。</p>';
- const sections=[...groups.values()].map(group=>
-  '<section class="card history-exercise"><div class="history-exercise-heading"><h2>'+esc(group.name)+'</h2><span class="muted">'+group.records.length+'セット</span></div>'+
-  group.records.map((r,index)=>window.SetFlowHistory.renderSet(r,index)).join("")+'</section>').join("");
- return navigation+summary+sections;
+ const nav='<div class="history-nav">'+
+  '<button type="button" class="history-arrow" data-action="history-older" aria-label="前の記録日" '+(!older||mode?"disabled":"")+'>&lsaquo;</button>'+
+  '<label class="history-date-picker"><span class="history-date-display" aria-hidden="true">'+esc(selected.replace(/-/g,"/"))+'</span>'+
+  '<input id="history-date" class="history-date-input" type="date" value="'+esc(selected)+'" aria-label="表示する日付" '+(mode?"disabled":"")+'></label>'+
+  '<button type="button" class="history-arrow" data-action="history-newer" aria-label="次の記録日" '+(!newer||mode?"disabled":"")+'>&rsaquo;</button></div>';
+ const activeCount=visible.filter(r=>!r.remove).length;
+ const tools=window.SetFlowHistory.toolbar(groups.size,activeCount,dates.length&&selected!==dates[0]);
+ const cards=[...groups.entries()].map(([id,group])=>
+  '<section class="card history-exercise"><div class="history-exercise-heading"><h2>'+esc(group.name)+'</h2><span class="muted">'+group.records.filter(r=>!r.remove).length+'セット</span></div>'+
+  group.records.map((r,i)=>window.SetFlowHistory.renderSet(r,i)).join("")+
+  window.SetFlowHistory.addRow(id)+'</section>').join("");
+ const empty=(!cards&&!mode)?'<p class="history-empty">この日の記録はありません</p>':"";
+ return nav+tools+empty+cards+window.SetFlowHistory.addExercise();
 };
 
 const timerHtml=()=>data.timer?'<section class="card timer-card"><div id="clock" class="clock" role="timer" aria-label="インターバルの残り時間">--:--</div><div class="actions"><button data-action="less">−15秒</button><button data-action="more">＋15秒</button><button data-action="stop">終了</button></div></section>':"";
@@ -64,9 +65,11 @@ function render(){
  tick();
 }
 function edit(id){const x=data.exercises.find(x=>x.id===id);const name=prompt("種目名",x?.name||"");if(name===null||!name.trim())return;const rest=prompt("休憩時間（秒）",String(x?.rest??90));if(rest===null)return;const n=Number(rest);if(!Number.isInteger(n)||n<0||n>3600){alert("0～3600秒で入力してください");return}if(x){x.name=name.trim();x.rest=n}else{const id=crypto.randomUUID();data.exercises.push({id,name:name.trim(),rest:n});data.selected=id}save();render()}
-el.addEventListener("change",async e=>{if(e.target.id==="exercise"){data.selected=e.target.value;save();render()}if(e.target.id==="history-date"){if(/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)){historyDate=e.target.value;render()}}if(e.target.id==="import"&&e.target.files[0]){try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.exercises)||!Array.isArray(d.records)||d.records.length>100000||d.exercises.length>1000||!d.exercises.every(x=>typeof x.id==="string"&&typeof x.name==="string"&&Number.isFinite(x.rest))||!d.records.every(x=>Number.isFinite(x.weight)&&Number.isFinite(x.reps)&&typeof x.at==="string"))throw Error("データ形式が不正");if(!confirm("現在のデータを上書きしますか？"))return;data={exercises:d.exercises,records:d.records,selected:d.selected,timer:null,deletedRecordIds:Array.isArray(d.deletedRecordIds)?d.deletedRecordIds:[],bodyMeasurements:Array.isArray(d.bodyMeasurements)?d.bodyMeasurements:(data.bodyMeasurements||[]),deletedBodyIds:Array.isArray(d.deletedBodyIds)?d.deletedBodyIds:(data.deletedBodyIds||[])};save();render()}catch(err){alert("復元できません: "+err.message)}}});
+el.addEventListener("change",async e=>{if(e.target.id==="exercise"){data.selected=e.target.value;save();render()}if(window.SetFlowHistory.handleField(e.target))return;if(e.target.id==="history-date"){if(!window.SetFlowHistory.isEditing()&&/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)){historyDate=e.target.value;render()}}if(e.target.id==="import"&&e.target.files[0]){try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.exercises)||!Array.isArray(d.records)||d.records.length>100000||d.exercises.length>1000||!d.exercises.every(x=>typeof x.id==="string"&&typeof x.name==="string"&&Number.isFinite(x.rest))||!d.records.every(x=>Number.isFinite(x.weight)&&Number.isFinite(x.reps)&&typeof x.at==="string"))throw Error("データ形式が不正");if(!confirm("現在のデータを上書きしますか？"))return;data={exercises:d.exercises,records:d.records,selected:d.selected,timer:null,deletedRecordIds:Array.isArray(d.deletedRecordIds)?d.deletedRecordIds:[],bodyMeasurements:Array.isArray(d.bodyMeasurements)?d.bodyMeasurements:(data.bodyMeasurements||[]),deletedBodyIds:Array.isArray(d.deletedBodyIds)?d.deletedBodyIds:(data.deletedBodyIds||[])};save();render()}catch(err){alert("復元できません: "+err.message)}}});
+el.addEventListener("input",e=>window.SetFlowHistory.handleField(e.target));
 el.addEventListener("click",e=>{const bodyButton=e.target.closest("[data-body-action]");if(bodyButton&&window.SetFlowBody.handleClick(bodyButton))return;const historyButton=e.target.closest("[data-history-action]");if(historyButton&&window.SetFlowHistory.handle(historyButton))return;const b=e.target.closest("[data-action]");if(!b)return;const a=b.dataset.action;
 if(a==="history-older"||a==="history-newer"||a==="history-latest"){
+ if(window.SetFlowHistory.isEditing())return;
  const days=recordedDays();
  const selected=historyDate||days[0];
  const next=a==="history-latest"?days[0]:a==="history-older"?days.find(day=>day<selected):[...days].reverse().find(day=>day>selected);
@@ -74,7 +77,7 @@ if(a==="history-older"||a==="history-newer"||a==="history-latest"){
 }if(a==="add")edit();if(a==="edit")edit(ex()?.id);if(a==="editid")edit(b.dataset.id);if(a==="complete"){const x=ex(),wi=document.getElementById("weight"),ri=document.getElementById("reps");if(!x||!wi.value||!ri.value)return;const w=Number(wi.value),r=Number(ri.value);if(!Number.isFinite(w)||w<0||w>2000||!Number.isInteger(r)||r<1||r>500){alert("重量・回数を確認してください");return}b.disabled=true;data.records.push({id:crypto.randomUUID(),exerciseId:x.id,exerciseName:x.name,weight:w,reps:r,restSeconds:x.rest,at:new Date().toISOString(),dirty:true});data.timer=x.rest>0?{end:Date.now()+x.rest*1000}:null;notified=false;save();render();if(connected())syncToSheet().catch(console.warn)}if(a==="stop"){data.timer=null;save();render()}if(a==="more"||a==="less"){data.timer.end+=(a==="more"?15000:-15000);notified=false;save();tick()}if(a==="undo"){const r=data.records.find(x=>x.id===b.dataset.id);if(r)window.SetFlowHistory.handle({dataset:{historyAction:"edit",id:r.id}})}if(a==="check-update"){checkAppUpdate()}if(a==="google-connect"){connectGoogle()}if(a==="google-sync"){if(!connected())connectGoogle();else syncToSheet().catch(err=>{syncError=err.message;updateSyncUI()})}if(a==="export"){const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const u=URL.createObjectURL(blob),link=document.createElement("a");link.href=u;link.download="setflow-backup.json";link.click();setTimeout(()=>URL.revokeObjectURL(u),3000)}});
 function tick(){if(!data.timer)return;const node=document.getElementById("clock");if(!node)return;const left=data.timer.end-Date.now();node.textContent=fmt(left/1000);if(left<=0&&!notified){notified=true;try{navigator.vibrate?.([150,100,150]);const A=window.AudioContext||window.webkitAudioContext;if(A){const ctx=new A(),o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.value=.07;o.start();o.stop(ctx.currentTime+.2);o.onended=()=>ctx.close()}}catch{}}}
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render();if(tab==="body"&&connected())window.SetFlowBody.sync().catch(console.warn)});document.addEventListener("visibilitychange",()=>{if(!document.hidden){tick();updateSyncUI();trySync()}});window.addEventListener("online",trySync);
-window.SetFlowHistory.init({data:()=>data,save,refresh:render,setTab:v=>{tab=v},setDate:v=>{historyDate=v},connected,sync:()=>syncToSheet().catch(console.warn)});
+window.SetFlowHistory.init({data:()=>data,save,refresh:render,setTab:v=>{tab=v},getDate:()=>historyDate,setDate:v=>{historyDate=v},connected,sync:()=>syncToSheet().catch(console.warn)});
 window.SetFlowBody.init({getData:()=>data,save,request:sheetRequest,connected,refresh:render,activeTab:()=>tab,triggerSync:()=>syncToSheet().catch(console.warn)});
 setInterval(tick,250);setInterval(updateSyncUI,30000);render();
 if(getClientId())loadGIS().catch(()=>{});
