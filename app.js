@@ -4,7 +4,7 @@ const seed=()=>({exercises:[{id:"bench",name:"ベンチプレス",rest:90},{id:"
 let data;try{data=JSON.parse(localStorage.getItem(KEY))||seed();if(!Array.isArray(data.exercises)||!Array.isArray(data.records))data=seed()}catch{data=seed()}
 let tab="train",notified=false,historyDate=null;
 const SHEET_ID="1ie5gs_68OGtXD_4XBfF-SI70JowQhkMIku_e5QIWV20";
-const APP_VERSION="DEV-10.30-4";
+const APP_VERSION="DEV-10.31-1";
 let googleToken="", tokenExpiry=0, syncing=false, syncAgain=false, syncError="";
 let lastCloudCheck=0, restoredThisSession=0;
 let gisLoadPromise=null;
@@ -58,13 +58,14 @@ function render(){
  document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
  if(tab==="train"){const x=ex();if(!x){el.innerHTML='<button data-action="add">＋ 種目を追加</button>'+timerHtml();return}
  const prev=last(x.id),sets=today(x.id);el.innerHTML='<section class="card train-card"><select id="exercise" aria-label="種目">'+data.exercises.map(z=>'<option value="'+esc(z.id)+'" '+(z.id===x.id?"selected":"")+'>'+esc(z.name)+'</option>').join("")+'</select><div class="row train-meta"><span class="muted">今日 '+sets.length+' セット · 休憩 '+fmt(x.rest)+'</span><button data-action="edit">種目設定</button></div><div class="fields"><label>重量 (kg)<input id="weight" type="number" min="0" max="2000" step="0.5" inputmode="decimal" value="'+(prev?prev.weight:0)+'"></label><label>回数<input id="reps" type="number" min="1" max="500" step="1" inputmode="numeric" value="'+(prev?prev.reps:10)+'"></label></div><button class="primary" data-action="complete">✓ セット完了・休憩開始</button></section>'+timerHtml()+'<section class="card record-card"><h2>今日の記録</h2>'+(sets.map((r,i)=>'<div class="row item"><span>'+(i+1)+'セット目　'+r.weight+' kg × '+r.reps+' 回</span><button data-action="undo" data-id="'+esc(r.id)+'">取消</button></div>').join("")||'<p class="muted">まだ記録がありません</p>')+'</section>';
- }else if(tab==="history"){el.innerHTML=historyRows()}
+ }else if(tab==="history"){el.innerHTML=historyRows()}else if(tab==="body"){el.innerHTML=window.SetFlowBody.render()}
  else{el.innerHTML='<h1>設定</h1><section class="card"><h2>種目</h2>'+data.exercises.map(x=>'<div class="row item"><span>'+esc(x.name)+'<br><small class="muted">休憩 '+fmt(x.rest)+'</small></span><button data-action="editid" data-id="'+esc(x.id)+'">編集</button></div>').join("")+'<p><button data-action="add">＋ 種目追加</button></p></section><section class="card"><h2>バックアップ</h2><p class="warning">端末内に記録を保存します。サイトデータの消去に備えてJSONバックアップを保管してください。</p><button data-action="export">JSONを書き出す</button><p><label>バックアップを復元<input id="import" type="file" accept=".json,application/json"></label></p></section>'+syncSettingsHtml()}
  tick();
 }
 function edit(id){const x=data.exercises.find(x=>x.id===id);const name=prompt("種目名",x?.name||"");if(name===null||!name.trim())return;const rest=prompt("休憩時間（秒）",String(x?.rest??90));if(rest===null)return;const n=Number(rest);if(!Number.isInteger(n)||n<0||n>3600){alert("0～3600秒で入力してください");return}if(x){x.name=name.trim();x.rest=n}else{const id=crypto.randomUUID();data.exercises.push({id,name:name.trim(),rest:n});data.selected=id}save();render()}
-el.addEventListener("change",async e=>{if(e.target.id==="exercise"){data.selected=e.target.value;save();render()}if(e.target.id==="history-date"){if(/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)){historyDate=e.target.value;render()}}if(e.target.id==="import"&&e.target.files[0]){try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.exercises)||!Array.isArray(d.records)||d.records.length>100000||d.exercises.length>1000||!d.exercises.every(x=>typeof x.id==="string"&&typeof x.name==="string"&&Number.isFinite(x.rest))||!d.records.every(x=>Number.isFinite(x.weight)&&Number.isFinite(x.reps)&&typeof x.at==="string"))throw Error("データ形式が不正");if(!confirm("現在のデータを上書きしますか？"))return;data={exercises:d.exercises,records:d.records,selected:d.selected,timer:null,deletedRecordIds:Array.isArray(d.deletedRecordIds)?d.deletedRecordIds:[]};save();render()}catch(err){alert("復元できません: "+err.message)}}});
-el.addEventListener("click",e=>{const b=e.target.closest("[data-action]");if(!b)return;const a=b.dataset.action;if(a==="history-older"||a==="history-newer"||a==="history-latest"){
+el.addEventListener("change",async e=>{if(e.target.id==="exercise"){data.selected=e.target.value;save();render()}if(e.target.id==="history-date"){if(/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)){historyDate=e.target.value;render()}}if(e.target.id==="import"&&e.target.files[0]){try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.exercises)||!Array.isArray(d.records)||d.records.length>100000||d.exercises.length>1000||!d.exercises.every(x=>typeof x.id==="string"&&typeof x.name==="string"&&Number.isFinite(x.rest))||!d.records.every(x=>Number.isFinite(x.weight)&&Number.isFinite(x.reps)&&typeof x.at==="string"))throw Error("データ形式が不正");if(!confirm("現在のデータを上書きしますか？"))return;data={exercises:d.exercises,records:d.records,selected:d.selected,timer:null,deletedRecordIds:Array.isArray(d.deletedRecordIds)?d.deletedRecordIds:[],bodyMeasurements:Array.isArray(d.bodyMeasurements)?d.bodyMeasurements:(data.bodyMeasurements||[]),deletedBodyIds:Array.isArray(d.deletedBodyIds)?d.deletedBodyIds:(data.deletedBodyIds||[])};save();render()}catch(err){alert("復元できません: "+err.message)}}});
+el.addEventListener("click",e=>{const b=e.target.closest("[data-action]");if(!b)return;const a=b.dataset.action;if(b.dataset.bodyAction){if(window.SetFlowBody.handleClick(b))return}
+if(a==="history-older"||a==="history-newer"||a==="history-latest"){
  const days=recordedDays();
  const selected=historyDate||days[0];
  const next=a==="history-latest"?days[0]:a==="history-older"?days.find(day=>day<selected):[...days].reverse().find(day=>day>selected);
@@ -74,7 +75,8 @@ el.addEventListener("click",e=>{const b=e.target.closest("[data-action]");if(!b)
  if(target){if(target.sheetSynced){if(!Array.isArray(data.deletedRecordIds))data.deletedRecordIds=[];if(!data.deletedRecordIds.includes(target.id))data.deletedRecordIds.push(target.id)}
  data.records=data.records.filter(x=>x.id!==target.id);save();render()}}if(a==="check-update"){checkAppUpdate()}if(a==="google-connect"){connectGoogle()}if(a==="google-sync"){if(!connected())connectGoogle();else syncToSheet().catch(err=>{syncError=err.message;updateSyncUI()})}if(a==="export"){const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const u=URL.createObjectURL(blob),link=document.createElement("a");link.href=u;link.download="setflow-backup.json";link.click();setTimeout(()=>URL.revokeObjectURL(u),3000)}});
 function tick(){if(!data.timer)return;const node=document.getElementById("clock");if(!node)return;const left=data.timer.end-Date.now();node.textContent=fmt(left/1000);if(left<=0&&!notified){notified=true;try{navigator.vibrate?.([150,100,150]);const A=window.AudioContext||window.webkitAudioContext;if(A){const ctx=new A(),o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.value=.07;o.start();o.stop(ctx.currentTime+.2);o.onended=()=>ctx.close()}}catch{}}}
-document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});document.addEventListener("visibilitychange",()=>{if(!document.hidden){tick();updateSyncUI();trySync()}});window.addEventListener("online",trySync);
+document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render();if(tab==="body"&&connected())window.SetFlowBody.sync().catch(console.warn)});document.addEventListener("visibilitychange",()=>{if(!document.hidden){tick();updateSyncUI();trySync()}});window.addEventListener("online",trySync);
+window.SetFlowBody.init({getData:()=>data,save,request:sheetRequest,connected,refresh:render,activeTab:()=>tab,triggerSync:()=>syncToSheet().catch(console.warn)});
 setInterval(tick,250);setInterval(updateSyncUI,30000);render();
 if(getClientId())loadGIS().catch(()=>{});
 if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js").catch(()=>{});
@@ -95,7 +97,7 @@ function syncSettingsHtml(){
  '<label>Google Cloud OAuthクライアントID<input id="google-client-id" type="text" autocomplete="off" value="'+esc(getClientId())+'" placeholder="1234-abc.apps.googleusercontent.com"></label>'+
  '<p class="muted" id="sync-status">'+esc(syncSummary())+'</p>'+
  '<div class="actions"><button data-action="google-connect">Googleで接続 / 再接続</button><button data-action="google-sync">記録を同期（送受信）</button></div>'+
- '<p class="warning">セット完了時は端末内に保存し、Google接続中に過去の履歴を取得し、新しいセットは自動送信します。期限切れ時は「Googleで接続」を押してください。</p></section>'+
+ '<p class="warning">筋トレ履歴と体組成の測定履歴を、それぞれのGoogleスプレッドシートと同期します。期限切れ時は再接続してください。</p></section>'+
  '<section class="app-update"><button type="button" data-action="check-update">アプリの更新を確認</button><p class="muted" id="app-version">Version '+APP_VERSION+'</p></section>';
 }
 function loadGIS(){
@@ -138,8 +140,8 @@ function trySync(force=false){
  if(!force && unsynced()===0 && Date.now()-lastCloudCheck<60000)return;
  syncToSheet().catch(err=>{syncError=err.message;updateSyncUI()});
 }
-async function sheetRequest(path,opts={}){
- const response=await fetch("https://sheets.googleapis.com/v4/spreadsheets/"+SHEET_ID+path,{
+async function sheetRequest(path,opts={},spreadsheetId=SHEET_ID){
+ const response=await fetch("https://sheets.googleapis.com/v4/spreadsheets/"+spreadsheetId+path,{
   ...opts,headers:{"Authorization":"Bearer "+googleToken,"Content-Type":"application/json"}
  });
  if(!response.ok){
@@ -213,6 +215,7 @@ async function syncToSheet(){
   }
   if(!save())throw Error("端末内の同期状態を保存できませんでした");
   lastCloudCheck=Date.now();
+  try{await window.SetFlowBody.sync()}catch(error){console.warn("Body composition sync failed:",error)}
   if(received.skipped)syncError="形式不正の記録 "+received.skipped+" 件を読み飛ばしました";
  }catch(e){syncError=e.message;throw e}
  finally{
