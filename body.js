@@ -6,7 +6,7 @@ window.SetFlowBody=(()=>{
  const METRICS=[{i:3,label:"体重",unit:"kg",min:0,max:500},{i:4,label:"体脂肪率",unit:"%",min:0,max:100},{i:7,label:"筋肉量",unit:"kg",min:0,max:300},{i:15,label:"BMI",unit:"",min:0,max:100}];
  const MORE=[{i:2,name:"身長",unit:"cm",min:50,max:250},{i:5,name:"脂肪量",unit:"kg",min:0,max:300},{i:6,name:"除脂肪量",unit:"kg",min:0,max:300},{i:9,name:"体水分量",unit:"kg",min:0,max:300},{i:10,name:"推定骨量",unit:"kg",min:0,max:50},{i:11,name:"基礎代謝量",unit:"kcal/日",min:0,max:6000},{i:13,name:"内臓脂肪レベル",unit:"",min:0,max:60},{i:16,name:"標準体重",unit:"kg",min:0,max:500},{i:17,name:"肥満度",unit:"%",min:-100,max:500}];
  const esc=s=>String(s??"").replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]));
- let api=null, editId=null, metric=3, syncing=false, status="",lastPull=0;
+ let api=null, editId=null, metric=3, syncing=false, status="",lastPull=0, syncPromise=null, syncRequested=false;
  const db=()=>{const d=api.getData();if(!Array.isArray(d.bodyMeasurements))d.bodyMeasurements=[];if(!Array.isArray(d.deletedBodyIds))d.deletedBodyIds=[];return d};
  const rows=()=>db().bodyMeasurements;
  const pad=x=>String(x).padStart(2,"0");
@@ -90,6 +90,7 @@ window.SetFlowBody=(()=>{
    const at=current?.at||atKey((day||"")+" "+(time||""));
    if(!at){alert("日付と時刻を入力してください");return true}
    const id=atKey(at);
+   if(!current)db().deletedBodyIds=db().deletedBodyIds.filter(x=>x!==id);
    if(!current && rows().some(r=>r.id===id)){alert("同じ日時の測定が既に存在します。履歴から「編集」を選んでください");return true}
    const values=current?[...current.values]:Array(20).fill("");
    values[0]=id;
@@ -121,7 +122,15 @@ window.SetFlowBody=(()=>{
  }
  async function sync(){
   if(!api.connected())return;
-  if(syncing)return;
+  if(syncPromise){syncRequested=true;return syncPromise}
+  const pending=syncInternal();syncPromise=pending;
+  try{return await pending}
+  finally{
+   syncPromise=null;
+   if(syncRequested){syncRequested=false;sync().catch(error=>console.warn("Body composition retry:",error))}
+  }
+ }
+ async function syncInternal(){
   syncing=true;setStatus("体組成データを同期中…");
   try{
    const response=await api.request("/values/"+encodeURIComponent(TAB)+"!A2:T?valueRenderOption=UNFORMATTED_VALUE",{},SHEET);
