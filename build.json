@@ -1,5 +1,5 @@
 {
-  "version": "DEV-10.31-2",
+  "version": "DEV-10.31-3",
   "build": "2026-10-31",
-  "description": "Compact body editor; two-column iPhone date/time and inline units"
+  "description": "Edit workout history and recover deleted workout and body composition records"
 }
