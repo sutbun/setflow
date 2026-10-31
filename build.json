@@ -1,5 +1,5 @@
 {
-  "version": "DEV-10.31-4",
+  "version": "DEV-10.31-5",
   "build": "2026-10-31",
-  "description": "Bulk edit mode for workout history, add sets, compact fields and protected deletes"
+  "description": "Remove redundant set count, rest time and exercise settings row from training view"
 }
