@@ -130,3 +130,10 @@ nav button{font-size:clamp(12px,3.1vw,15px);padding:12px 3px;white-space:nowrap}
 .record-heading{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:14px}
 .record-heading h2{margin:0}
 .record-total{color:#a4b5ce;font-size:14px;font-weight:500;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* Match the compact number column used on the history screen. */
+.record-set-row{display:flex;align-items:center;gap:9px;padding:11px 2px;min-width:0}
+.record-set-row .history-set-index{width:25px;flex:0 0 25px;text-align:center;font-size:13px;color:#a4b5ce}
+.record-set-row .history-set-detail{flex:1;min-width:0;font-variant-numeric:tabular-nums}
+.record-set-row .history-set-multiply{padding:0 9px}
+.record-set-undo{flex:0 0 auto;padding:9px 11px;font-size:13px;white-space:nowrap}
