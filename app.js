@@ -196,25 +196,38 @@ async function syncToSheet(){
  if(syncing){syncAgain=true;return}
  syncing=true;syncError="";updateSyncUI();
  try{
-  // 一度の読み込みでGoogleにある全セットを取得（受信・送信双方で使用）。
-  const response=await sheetRequest("/values/%27%E8%A8%98%E9%8C%B2%27!A2:H?valueRenderOption=UNFORMATTED_VALUE");
+  const response=await sheetRequest("/values/%27%E8%A8%98%E9%8C%B2%27!A2:I?valueRenderOption=UNFORMATTED_VALUE");
   const rows=Array.isArray(response.values)?response.values:[];
   const received=mergeCloudRecords(rows);
-  // ローカル保存に失敗したら、同期成功として扱わない。
   if(!save())throw Error("端末内への履歴保存に失敗しました");
-  const existing=new Set(rows.map(row=>String(row?.[0]||"").trim()).filter(Boolean));
-  const deleted=new Set(data.deletedRecordIds||[]);
-  const pending=data.records.filter(r=>!existing.has(r.id)&&!deleted.has(r.id));
-  if(pending.length){
-   const values=pending.map(r=>[r.id,r.at,r.exerciseId,r.exerciseName,r.weight,r.reps,
-    r.restSeconds??data.exercises.find(ex=>ex.id===r.exerciseId)?.rest??"",new Date().toISOString()]);
-   await sheetRequest("/values/%27%E8%A8%98%E9%8C%B2%27!A:H:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS",
-    {method:"POST",body:JSON.stringify({values})});
-   for(const r of pending)r.sheetSynced=true;
+  const cloud=new Map();
+  rows.forEach((r,index)=>{
+   const id=String(r?.[0]||"").trim();
+   if(id&&!cloud.has(id))cloud.set(id,{row:index+2});
+  });
+  const legacyDeleted=new Set(data.deletedRecordIds||[]);
+  for(const r of data.records){
+   if(legacyDeleted.has(r.id))continue;
+   const existing=cloud.get(r.id);
+   if(!r.dirty&&existing)continue;
+   if(r.deletedAt&&!existing)continue; // New set deleted before any upload: only keep in local trash
+   const values=[r.id,r.at,r.exerciseId,r.exerciseName,r.weight,r.reps,
+    r.restSeconds??data.exercises.find(ex=>ex.id===r.exerciseId)?.rest??"",new Date().toISOString(),r.deletedAt?"deleted":"active"];
+   const snapshot=JSON.stringify([r.at,r.exerciseId,r.exerciseName,r.weight,r.reps,r.restSeconds,r.deletedAt]);
+   if(existing){
+    await sheetRequest("/values/%27%E8%A8%98%E9%8C%B2%27!A"+existing.row+":I"+existing.row+"?valueInputOption=RAW",
+     {method:"PUT",body:JSON.stringify({values:[values]})});
+   }else{
+    await sheetRequest("/values/%27%E8%A8%98%E9%8C%B2%27!A:I:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS",
+     {method:"POST",body:JSON.stringify({values:[values]})});
+   }
+   r.sheetSynced=true;
+   if(snapshot===JSON.stringify([r.at,r.exerciseId,r.exerciseName,r.weight,r.reps,r.restSeconds,r.deletedAt]))r.dirty=false;
+   else syncAgain=true;
   }
-  if(!save())throw Error("端末内の同期状態を保存できませんでした");
+  if(!save())throw Error("端末内への同期状態保存に失敗しました");
   lastCloudCheck=Date.now();
-  try{await window.SetFlowBody.sync()}catch(error){console.warn("Body composition sync failed:",error)}
+  try{await window.SetFlowBody.sync()}catch(err){console.warn("Body composition sync failed:",err)}
   if(received.skipped)syncError="形式不正の記録 "+received.skipped+" 件を読み飛ばしました";
  }catch(e){syncError=e.message;throw e}
  finally{
