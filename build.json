@@ -1,5 +1,5 @@
 {
-  "version": "DEV-10.30-4",
-  "build": "2026-10-30",
-  "description": "Restore existing workout history from Google Sheets on synchronization"
+  "version": "DEV-10.31-1",
+  "build": "2026-10-31",
+  "description": "Add body composition tab, data entry, trend and Google Sheets sync"
 }
