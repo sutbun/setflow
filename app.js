@@ -11,6 +11,7 @@ let gisLoadPromise=null;
 const connected=()=>googleToken&&Date.now()<tokenExpiry-60000;
 const getClientId=()=>localStorage.getItem("setflow-google-client-id")||"";
 const unsynced=()=>data.records.filter(r=>!r.sheetSynced).length;
+const pendingBody=()=>Array.isArray(data.bodyMeasurements)?data.bodyMeasurements.filter(r=>r.dirty).length:0;
 
 const el=document.getElementById("app"),fmt=n=>{n=Math.max(0,Math.ceil(n));return String(Math.floor(n/60)).padStart(2,"0")+":"+String(n%60).padStart(2,"0")};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -82,7 +83,7 @@ if(getClientId())loadGIS().catch(()=>{});
 if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js").catch(()=>{});
 
 function syncSummary(){
- const n=unsynced();
+ const n=unsynced()+pendingBody();
  if(syncing)return "同期中…（未同期 "+n+" 件）";
  if(syncError)return "同期エラー："+syncError+(n?"（未同期 "+n+" 件）":"");
  if(!connected())return n?"Google再接続が必要（未同期 "+n+" 件）":"Google未接続";
@@ -93,7 +94,7 @@ function updateSyncUI(){
 }
 function syncSettingsHtml(){
  return '<section class="card"><h2>Googleスプレッドシート</h2>'+
- '<p class="muted">同期先: <a href="https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/edit" target="_blank" rel="noopener" style="color:#a8bdff">SetFlow 筋トレ記録</a></p>'+
+ '<p class="muted">同期先: <a href="https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/edit" target="_blank" rel="noopener" style="color:#a8bdff">筋トレ記録</a> ／ <a href="https://docs.google.com/spreadsheets/d/1a1c7sYQX9sSWfgcZ3kGviHdTBF6R7m2kCHHUDUe2shQ/edit" target="_blank" rel="noopener" style="color:#a8bdff">体組成測定履歴</a></p>'+
  '<label>Google Cloud OAuthクライアントID<input id="google-client-id" type="text" autocomplete="off" value="'+esc(getClientId())+'" placeholder="1234-abc.apps.googleusercontent.com"></label>'+
  '<p class="muted" id="sync-status">'+esc(syncSummary())+'</p>'+
  '<div class="actions"><button data-action="google-connect">Googleで接続 / 再接続</button><button data-action="google-sync">記録を同期（送受信）</button></div>'+
@@ -137,7 +138,7 @@ function connectGoogle(){
 function trySync(force=false){
  if(!connected()||!navigator.onLine)return;
  // 端末からの送信がゼロでも、他端末の履歴を受信する。
- if(!force && unsynced()===0 && Date.now()-lastCloudCheck<60000)return;
+ if(!force && unsynced()+pendingBody()===0 && Date.now()-lastCloudCheck<60000)return;
  syncToSheet().catch(err=>{syncError=err.message;updateSyncUI()});
 }
 async function sheetRequest(path,opts={},spreadsheetId=SHEET_ID){
