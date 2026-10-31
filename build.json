@@ -1,5 +1,5 @@
 {
-  "version": "DEV-10.31-6",
+  "version": "DEV-10.31-7",
   "build": "2026-10-31",
-  "description": "Always show countdown above exercise input, without timer control buttons"
+  "description": "Display all-exercise daily total sets beside Today's Records heading"
 }
