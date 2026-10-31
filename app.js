@@ -178,7 +178,7 @@ function mergeCloudRecords(rows){
   if(deleted.has(record.id))continue;
   if(localById.has(record.id)){
    const local=localById.get(record.id);
-   if(!local.dirty){Object.assign(local,{at:record.at,exerciseId:record.exerciseId,exerciseName:record.exerciseName,weight:record.weight,reps:record.reps,restSeconds:record.restSeconds,deletedAt:record.deletedAt,sheetSynced:true});acknowledged++}
+   if(!local.dirty&&!(local.localEditAt&&Date.now()-local.localEditAt<300000)){Object.assign(local,{at:record.at,exerciseId:record.exerciseId,exerciseName:record.exerciseName,weight:record.weight,reps:record.reps,restSeconds:record.restSeconds,deletedAt:record.deletedAt,sheetSynced:true});acknowledged++}
    continue;
   }
   data.records.push(record);localById.set(record.id,record);imported++;
