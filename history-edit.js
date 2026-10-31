@@ -1,6 +1,19 @@
 "use strict";
 window.SetFlowHistory=(()=>{
  let api=null,editing=false,drafts=new Map(),activeDate=null,lastDeleted=null,changed=false;
+ let undoExpiresAt=0,undoTimer=null;
+ const UNDO_DISPLAY_MS=8000;
+ function dismissUndo(){
+  lastDeleted=null;undoExpiresAt=0;
+  if(undoTimer!==null){clearTimeout(undoTimer);undoTimer=null}
+  document.querySelector(".history-undo-note")?.remove();
+ }
+ function showUndo(id){
+  dismissUndo();
+  lastDeleted=id;undoExpiresAt=Date.now()+UNDO_DISPLAY_MS;
+  undoTimer=setTimeout(()=>{undoTimer=null;if(Date.now()>=undoExpiresAt)dismissUndo()},UNDO_DISPLAY_MS);
+ }
+
  const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
  const pad=x=>String(x).padStart(2,"0");
  const dayOf=at=>{const d=new Date(at);return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())};
@@ -16,7 +29,11 @@ window.SetFlowHistory=(()=>{
  }
  function currentRows(realRows){return editing?[...drafts.values()]:realRows}
  function isEditing(){return editing}
- function renderBanner(){return lastDeleted?'<div class="history-undo-note">セットを削除しました <button type="button" data-history-action="restore" data-id="'+esc(lastDeleted)+'">元に戻す</button></div>':""}
+ function renderBanner(){
+  if(!lastDeleted)return "";
+  if(Date.now()>=undoExpiresAt){dismissUndo();return ""}
+  return '<div class="history-undo-note">セットを削除しました <button type="button" data-history-action="restore" data-id="'+esc(lastDeleted)+'">元に戻す</button></div>';
+ }
  function toolbar(exercises,sets,isOlder){
   const summary=exercises+'種目 · '+sets+'セット';
   if(editing){
@@ -95,11 +112,11 @@ window.SetFlowHistory=(()=>{
   const original=db().records;
   const next=original.map(r=>({...r}));
   const byId=new Map(next.map(r=>[r.id,r]));
-  const changedAt=Date.now();let deleteCount=0,hasMutations=false;
+  const changedAt=Date.now();let lastRemovedId=null,hasMutations=false;
   for(const r of drafts.values()){
    const stored=byId.get(r.id);
    if(r.remove){
-    if(stored&&!stored.deletedAt){stored.deletedAt=new Date(changedAt).toISOString();stored.dirty=true;stored.localEditAt=changedAt;deleteCount++;hasMutations=true;lastDeleted=stored.id}
+    if(stored&&!stored.deletedAt){stored.deletedAt=new Date(changedAt).toISOString();stored.dirty=true;stored.localEditAt=changedAt;lastRemovedId=stored.id;hasMutations=true}
     continue;
    }
    const updated=result.find(x=>x.id===r.id);
@@ -118,12 +135,14 @@ window.SetFlowHistory=(()=>{
   next.sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
   db().records=next;
   if(!api.save()){db().records=original;alert("保存できませんでした。変更は確定していません");return}
-  editing=false;changed=false;drafts.clear();api.refresh();
+  editing=false;changed=false;drafts.clear();
+  if(lastRemovedId)showUndo(lastRemovedId);
+  api.refresh();
   if(hasMutations&&api.connected())api.sync();
  }
  function restore(id){
   const r=db().records.find(x=>x.id===id&&x.deletedAt);if(!r)return;
-  r.deletedAt=null;r.dirty=true;r.localEditAt=Date.now();lastDeleted=null;
+  r.deletedAt=null;r.dirty=true;r.localEditAt=Date.now();dismissUndo();
   db().deletedRecordIds=(db().deletedRecordIds||[]).filter(x=>x!==id);
   api.setDate(dayOf(r.at));if(api.save()){api.refresh();if(api.connected())api.sync()}
  }
@@ -161,5 +180,5 @@ window.SetFlowHistory=(()=>{
   return false;
  }
  const init=deps=>{api=deps};
- return {init,isEditing,currentRows,toolbar,renderSet,addRow,addExercise,renderBanner,renderTrash,handle,handleField};
+ return {init,isEditing,currentRows,toolbar,renderSet,addRow,addExercise,renderBanner,renderTrash,handle,handleField,dismissUndo};
 })();
