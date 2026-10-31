@@ -1,5 +1,5 @@
 {
-  "version": "DEV-10.31-8",
+  "version": "DEV-10.31-9",
   "build": "2026-10-31",
-  "description": "Count today's sets for the currently selected exercise only"
+  "description": "Match today's set numbers to history's compact numbered rows"
 }
