@@ -16,7 +16,7 @@ window.SetFlowBody=(()=>{
  const val=(row,i)=>row.values[i]===0?0:row.values[i]??"";
  const latest=()=>[...rows()].sort((a,b)=>String(b.at).localeCompare(String(a.at)));
  const numeric=(v,min,max)=>{if(v===""||v==null)return "";const n=Number(v);return Number.isFinite(n)&&n>=min&&n<=max?n:null};
- const field=(idx,label,unit="",min=0,max=100000,step="any")=>'<label class="body-field">'+esc(label)+(unit?' <small>('+esc(unit)+')</small>':"")+'<input data-body-field="'+idx+'" type="number" inputmode="decimal" step="'+step+'" min="'+min+'" max="'+max+'" value="" placeholder="—"></label>';
+ const field=(idx,label,unit="",min=0,max=100000,step="any")=>'<label class="body-field"><span class="body-field-title">'+esc(label)+(unit?' <small>('+esc(unit)+')</small>':"")+'</span><input data-body-field="'+idx+'" type="number" inputmode="decimal" step="'+step+'" min="'+min+'" max="'+max+'" value="" placeholder="—"></label>';
  const sparkline=items=>{
   const points=items.slice().reverse().filter(e=>Number.isFinite(Number(val(e,metric)))&&val(e,metric)!=="").slice(-30);
   if(points.length<2)return '<p class="muted body-empty-chart">2回以上の測定で推移を表示します</p>';
@@ -47,7 +47,7 @@ window.SetFlowBody=(()=>{
   const t=now(),at=item?atKey(item.at):null;
   const date=at?at.slice(0,10):t.day,time=at?at.slice(11):t.time;
   const s='<section class="card body-editor"><div class="body-editor-title"><h2>'+(item?"測定を編集":"新しい測定")+'</h2><button data-body-action="cancel" type="button">閉じる</button></div>'+
-   '<div class="body-date-fields"><label>測定日<input id="body-day" type="date" value="'+date+'" '+(item?"disabled":"")+'></label><label>時刻<input id="body-time" type="time" value="'+time+'" '+(item?"disabled":"")+'></label></div>'+
+   '<div class="body-date-fields"><label class="body-date-field"><span class="body-field-title">測定日</span><span class="body-date-control"><span id="body-day-display" class="body-date-visible" aria-hidden="true">'+date.replace(/-/g,"/")+'</span><input id="body-day" type="date" value="'+date+'" '+(item?"disabled":"")+'></span></label><label class="body-date-field"><span class="body-field-title">時刻</span><span class="body-date-control"><span id="body-time-display" class="body-date-visible" aria-hidden="true">'+time+'</span><input id="body-time" type="time" value="'+time+'" '+(item?"disabled":"")+'></span></label></div>'+
    '<div class="body-input-grid">'+field(3,"体重","kg",0,500)+field(4,"体脂肪率","%",0,100)+field(7,"筋肉量","kg",0,300)+field(15,"BMI","",0,100)+'</div>'+
    '<details class="body-more"><summary>その他の測定値</summary><div class="body-input-grid">'+MORE.map(m=>field(m.i,m.name,m.unit,m.min,m.max)).join("")+'</div>'+
    '<label class="body-field">筋肉量評価<input data-body-field="8" type="text" value=""></label>'+
@@ -164,6 +164,18 @@ window.SetFlowBody=(()=>{
   }catch(e){setStatus("体組成の同期エラー："+(e.message||String(e)));throw e}
   finally{syncing=false}
  }
- const init=deps=>{api=deps;db()};
- return {init,render,handleClick,sync,refresh,version:"1.0"};
+ const handleDateInput=event=>{
+  const target=event.target;
+  if(target.id!=="body-day"&&target.id!=="body-time")return;
+  const display=document.getElementById(target.id+"-display");
+  if(display)display.textContent=target.id==="body-day"?target.value.replace(/-/g,"/"):target.value;
+ };
+ const init=deps=>{
+  api=deps;db();
+  // Keep visible date/time text in sync with the native iOS pickers without rebuilding the form.
+  const root=document.getElementById("app");
+  root.addEventListener("input",handleDateInput);
+  root.addEventListener("change",handleDateInput);
+ };
+ return {init,render,handleClick,sync,refresh,version:"1.1"};
 })();
