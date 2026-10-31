@@ -1,5 +1,5 @@
 {
-  "version": "DEV-10.31-5",
+  "version": "DEV-10.31-6",
   "build": "2026-10-31",
-  "description": "Remove redundant set count, rest time and exercise settings row from training view"
+  "description": "Always show countdown above exercise input, without timer control buttons"
 }
