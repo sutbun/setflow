@@ -1,5 +1,5 @@
 {
-  "version": "DEV-10.31-1",
+  "version": "DEV-10.31-2",
   "build": "2026-10-31",
-  "description": "Add body composition tab, data entry, trend and Google Sheets sync"
+  "description": "Compact body editor; two-column iPhone date/time and inline units"
 }
