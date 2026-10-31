@@ -14,7 +14,7 @@ window.SetFlowBody=(()=>{
  const atKey=s=>{const v=String(s||"").trim().replace("T"," ");const m=/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})/.exec(v);return m?m[1]+" "+m[2]:null};
  const dateText=s=>{const v=atKey(s);return v?v.slice(0,10).replace(/-/g,"/")+(v.slice(11)==="00:00"?"":" "+v.slice(11)):"--"};
  const val=(row,i)=>row.values[i]===0?0:row.values[i]??"";
- const latest=()=>[...rows()].sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+ const latest=()=>rows().filter(r=>!r.deletedAt).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
  const numeric=(v,min,max)=>{if(v===""||v==null)return "";const n=Number(v);return Number.isFinite(n)&&n>=min&&n<=max?n:null};
  const field=(idx,label,unit="",min=0,max=100000,step="any")=>'<label class="body-field"><span class="body-field-title">'+esc(label)+(unit?' <small>('+esc(unit)+')</small>':"")+'</span><input data-body-field="'+idx+'" type="number" inputmode="decimal" step="'+step+'" min="'+min+'" max="'+max+'" value="" placeholder="—"></label>';
  const sparkline=items=>{
@@ -40,7 +40,14 @@ window.SetFlowBody=(()=>{
    '<div class="body-metrics">'+metricTiles+'</div><section class="card body-chart-card"><div class="body-chart-title">'+selected.label+'の推移</div>'+sparkline(sorted)+'</section>'+
    '<div id="body-sync-note" class="body-sync-note">'+esc(status||(!api.connected()?"Google未接続・端末に保存":""))+'</div>'+
    '<div id="body-form-slot">'+(editId==="new"||editId?form(): "")+'</div>'+
-   '<div class="body-history-list">'+(cards||'<p class="body-no-records">測定データはまだありません。Googleに接続すると過去の測定を読み込みます。</p>')+'</div>';
+   '<div class="body-history-list">'+(cards||'<p class="body-no-records">測定データはまだありません。Googleに接続すると過去の測定を読み込みます。</p>')+'</div>'+renderTrash();
+ }
+ function renderTrash(){
+  const deleted=rows().filter(x=>x.deletedAt).sort((a,b)=>String(b.deletedAt).localeCompare(String(a.deletedAt)));
+  if(!deleted.length)return "";
+  return '<section class="card body-trash"><details><summary>削除した測定 ('+deleted.length+'件)・復元できます</summary>'+
+   deleted.map(x=>'<div class="body-trash-row"><span>'+esc(dateText(x.at))+' · '+esc(x.values[3])+' kg</span>'+
+   '<button type="button" data-body-action="restore" data-id="'+esc(x.id)+'">復元</button></div>').join("")+'</details></section>';
  }
  function form(){
   const item=editId!=="new"?rows().find(x=>x.id===editId):null;
@@ -79,10 +86,16 @@ window.SetFlowBody=(()=>{
   if(action==="edit"){editId=button.dataset.id;refresh();document.getElementById("body-form-slot")?.scrollIntoView?.({block:"nearest"});return true}
   if(action==="cancel"){editId=null;refresh();return true}
   if(action==="delete"){
-   const item=rows().find(x=>x.id===editId);if(!item)return true;
-   if(!confirm("この測定を削除しますか？\nGoogleシートに同期済みの場合も削除されます。"))return true;
-   db().deletedBodyIds.push(item.id);db().bodyMeasurements=rows().filter(x=>x.id!==item.id);
-   editId=null;api.save();refresh();if(api.connected())api.triggerSync();return true
+   const item=rows().find(x=>x.id===editId&&!x.deletedAt);if(!item)return true;
+   if(!confirm("この測定を削除しますか？\n"+dateText(item.at)+" / "+item.values[3]+" kg\n削除後もごみ箱から復元できます。"))return true;
+   item.deletedAt=new Date().toISOString();item.dirty=true;
+   editId=null;if(api.save()){refresh();if(api.connected())api.triggerSync()}return true;
+  }
+  if(action==="restore"){
+   const item=rows().find(x=>x.id===button.dataset.id&&x.deletedAt);if(!item)return true;
+   item.deletedAt=null;item.dirty=true;
+   db().deletedBodyIds=db().deletedBodyIds.filter(x=>x!==item.id);
+   if(api.save()){refresh();if(api.connected())api.triggerSync()}return true;
   }
   if(action==="save"){
    const current=editId==="new"?null:rows().find(x=>x.id===editId);
@@ -118,7 +131,7 @@ window.SetFlowBody=(()=>{
   const values=Array.from({length:20},(_,i)=>row[i]??"");values[0]=at;
   // Empty rows and malformed weight should never become measurements.
   if(numeric(values[3],0,500)===null||values[3]==="")return null;
-  return {id:at,at,values,dirty:false};
+  return {id:at,at,values,deletedAt:String(row[20]||"").trim().toLowerCase()==="deleted"?"cloud":null,dirty:false};
  }
  async function sync(){
   if(!api.connected())return;
@@ -133,7 +146,7 @@ window.SetFlowBody=(()=>{
  async function syncInternal(){
   syncing=true;setStatus("体組成データを同期中…");
   try{
-   const response=await api.request("/values/"+encodeURIComponent(TAB)+"!A2:T?valueRenderOption=UNFORMATTED_VALUE",{},SHEET);
+   const response=await api.request("/values/"+encodeURIComponent(TAB)+"!A2:U?valueRenderOption=UNFORMATTED_VALUE",{},SHEET);
    const cloud=new Map();
    const cloudRows=response.values||[];
    cloudRows.forEach((r,i)=>{const item=parseCloud(r);if(item&&!cloud.has(item.id))cloud.set(item.id,{item,row:i+2})});
@@ -148,14 +161,11 @@ window.SetFlowBody=(()=>{
    }
    // Persist cloud data before attempting writes.
    if(!api.save())throw Error("端末への保存に失敗しました");
-   // Deletion clears the original row in place; other rows remain untouched.
-   const toClear=[...deleted].filter(id=>cloud.has(id)).map(id=>TAB+"!A"+cloud.get(id).row+":T"+cloud.get(id).row);
-   if(toClear.length)await api.request("/values:batchClear",{method:"POST",body:JSON.stringify({ranges:toClear})},SHEET);
    for(const r of [...rows()].filter(r=>r.dirty)){
     const existing=cloud.get(r.id);
-    const location=existing?"/values/"+encodeURIComponent(TAB)+"!A"+existing.row+":T"+existing.row:"/values/"+encodeURIComponent(TAB)+"!A:T:append";
+    const location=existing?"/values/"+encodeURIComponent(TAB)+"!A"+existing.row+":U"+existing.row:"/values/"+encodeURIComponent(TAB)+"!A:U:append";
     const query=existing?"?valueInputOption=RAW":"?valueInputOption=RAW&insertDataOption=INSERT_ROWS";
-    await api.request(location+query,{method:existing?"PUT":"POST",body:JSON.stringify({values:[r.values]})},SHEET);
+    await api.request(location+query,{method:existing?"PUT":"POST",body:JSON.stringify({values:[[...r.values,r.deletedAt?"deleted":"active"]]})},SHEET);
     r.dirty=false;pushed++;
    }
    if(!api.save())throw Error("端末への保存に失敗しました");
