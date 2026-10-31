@@ -88,12 +88,12 @@ window.SetFlowBody=(()=>{
   if(action==="delete"){
    const item=rows().find(x=>x.id===editId&&!x.deletedAt);if(!item)return true;
    if(!confirm("この測定を削除しますか？\n"+dateText(item.at)+" / "+item.values[3]+" kg\n削除後もごみ箱から復元できます。"))return true;
-   item.deletedAt=new Date().toISOString();item.dirty=true;
+   item.deletedAt=new Date().toISOString();item.dirty=true;item.localEditAt=Date.now();
    editId=null;if(api.save()){refresh();if(api.connected())api.triggerSync()}return true;
   }
   if(action==="restore"){
    const item=rows().find(x=>x.id===button.dataset.id&&x.deletedAt);if(!item)return true;
-   item.deletedAt=null;item.dirty=true;
+   item.deletedAt=null;item.dirty=true;item.localEditAt=Date.now();
    db().deletedBodyIds=db().deletedBodyIds.filter(x=>x!==item.id);
    if(api.save()){refresh();if(api.connected())api.triggerSync()}return true;
   }
@@ -116,7 +116,7 @@ window.SetFlowBody=(()=>{
     else values[i]=value.slice(0,160);
    }
    if(values[3]===""){alert("体重を入力してください");return true}
-   const item={id,at:id,values,dirty:true};
+   const item={id,at:id,values,dirty:true,localEditAt:Date.now()};
    if(current)db().bodyMeasurements=rows().map(x=>x.id===current.id?item:x);
    else rows().push(item);
    if(!api.save()){alert("端末への保存に失敗しました");return true}
@@ -157,7 +157,7 @@ window.SetFlowBody=(()=>{
    for(const [id,remote] of cloud){
     if(deleted.has(id))continue;
     if(!local.has(id)){rows().push(remote.item);local.set(id,remote.item);pulled++}
-    else if(!local.get(id).dirty)Object.assign(local.get(id),remote.item);
+    else if(!local.get(id).dirty&&!(local.get(id).localEditAt&&Date.now()-local.get(id).localEditAt<300000))Object.assign(local.get(id),remote.item);
    }
    // Persist cloud data before attempting writes.
    if(!api.save())throw Error("端末への保存に失敗しました");
