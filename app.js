@@ -2,9 +2,9 @@
 const KEY="setflow-mvp-v1";
 const seed=()=>({exercises:[{id:"bench",name:"ベンチプレス",rest:90},{id:"squat",name:"スクワット",rest:180},{id:"pull",name:"ラットプルダウン",rest:90}],records:[],selected:"bench",timer:null});
 let data;try{data=JSON.parse(localStorage.getItem(KEY))||seed();if(!Array.isArray(data.exercises)||!Array.isArray(data.records))data=seed()}catch{data=seed()}
-let tab="train",notified=false,historyDate=null;
+let tab="train",notified=false,historyDate=null,historyView="records",growthExerciseId=null;
 const SHEET_ID="1ie5gs_68OGtXD_4XBfF-SI70JowQhkMIku_e5QIWV20";
-const APP_VERSION="DEV-10.31-10";
+const APP_VERSION="DEV-11.03-1";
 let googleToken="", tokenExpiry=0, syncing=false, syncAgain=false, syncError="";
 let lastCloudCheck=0, restoredThisSession=0;
 let gisLoadPromise=null;
@@ -60,14 +60,23 @@ function render(){
  document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
  if(tab==="train"){const x=ex();if(!x){el.innerHTML=timerHtml()+'<button data-action="add">＋ 種目を追加</button>';tick();return}
  const prev=last(x.id),sets=today(x.id);el.innerHTML=timerHtml()+'<section class="card train-card"><select id="exercise" aria-label="種目">'+data.exercises.map(z=>'<option value="'+esc(z.id)+'" '+(z.id===x.id?"selected":"")+'>'+esc(z.name)+'</option>').join("")+'</select><div class="fields"><label>重量 (kg)<input id="weight" type="number" min="0" max="2000" step="0.5" inputmode="decimal" value="'+(prev?prev.weight:0)+'"></label><label>回数<input id="reps" type="number" min="1" max="500" step="1" inputmode="numeric" value="'+(prev?prev.reps:10)+'"></label></div><button class="primary" data-action="complete">✓ セット完了・休憩開始</button></section>'+'<section class="card record-card"><div class="record-heading"><h2>今日の記録</h2><span class="record-total" aria-label="今日の選択種目セット数">'+sets.length+'セット</span></div>'+(sets.map((r,i)=>'<div class="history-set record-set-row"><span class="history-set-index">'+(i+1)+'</span><span class="history-set-detail"><strong>'+r.weight+' kg</strong><span class="history-set-multiply">×</span>'+r.reps+' 回</span><button class="record-set-undo" data-action="undo" data-id="'+esc(r.id)+'">取消</button></div>').join("")||'<p class="muted">まだ記録がありません</p>')+'</section>';
- }else if(tab==="history"){el.innerHTML=historyRows()}else if(tab==="body"){el.innerHTML=window.SetFlowBody.render()}
+ }else if(tab==="history"){el.innerHTML='<div class="history-view-tabs" role="group" aria-label="履歴の表示">'+
+ '<button type="button" data-action="history-view" data-view="records" '+(historyView==="records"?'class="active" aria-pressed="true"':'aria-pressed="false"')+'>記録</button>'+
+ '<button type="button" data-action="history-view" data-view="growth" '+(historyView==="growth"?'class="active" aria-pressed="true"':'aria-pressed="false"')+(window.SetFlowHistory.isEditing()?' disabled':'')+'>成長</button></div>'+
+ (historyView==="growth"?window.SetFlowGrowth.render(data,growthExerciseId||data.selected):historyRows())}else if(tab==="body"){el.innerHTML=window.SetFlowBody.render()}
  else{el.innerHTML='<h1>設定</h1><section class="card"><h2>種目</h2>'+data.exercises.map(x=>'<div class="row item"><span>'+esc(x.name)+'<br><small class="muted">休憩 '+fmt(x.rest)+'</small></span><button data-action="editid" data-id="'+esc(x.id)+'">編集</button></div>').join("")+'<p><button data-action="add">＋ 種目追加</button></p></section>'+window.SetFlowHistory.renderTrash()+'<section class="card"><h2>バックアップ</h2><p class="warning">端末内に記録を保存します。サイトデータの消去に備えてJSONバックアップを保管してください。</p><button data-action="export">JSONを書き出す</button><p><label>バックアップを復元<input id="import" type="file" accept=".json,application/json"></label></p></section>'+syncSettingsHtml()}
  tick();
 }
 function edit(id){const x=data.exercises.find(x=>x.id===id);const name=prompt("種目名",x?.name||"");if(name===null||!name.trim())return;const rest=prompt("休憩時間（秒）",String(x?.rest??90));if(rest===null)return;const n=Number(rest);if(!Number.isInteger(n)||n<0||n>3600){alert("0～3600秒で入力してください");return}if(x){x.name=name.trim();x.rest=n}else{const id=crypto.randomUUID();data.exercises.push({id,name:name.trim(),rest:n});data.selected=id}save();render()}
-el.addEventListener("change",async e=>{if(e.target.id==="exercise"){data.selected=e.target.value;save();render()}if(window.SetFlowHistory.handleField(e.target))return;if(e.target.id==="history-date"){if(!window.SetFlowHistory.isEditing()&&/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)){historyDate=e.target.value;window.SetFlowHistory.dismissUndo();render()}}if(e.target.id==="import"&&e.target.files[0]){try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.exercises)||!Array.isArray(d.records)||d.records.length>100000||d.exercises.length>1000||!d.exercises.every(x=>typeof x.id==="string"&&typeof x.name==="string"&&Number.isFinite(x.rest))||!d.records.every(x=>Number.isFinite(x.weight)&&Number.isFinite(x.reps)&&typeof x.at==="string"))throw Error("データ形式が不正");if(!confirm("現在のデータを上書きしますか？"))return;data={exercises:d.exercises,records:d.records,selected:d.selected,timer:null,deletedRecordIds:Array.isArray(d.deletedRecordIds)?d.deletedRecordIds:[],bodyMeasurements:Array.isArray(d.bodyMeasurements)?d.bodyMeasurements:(data.bodyMeasurements||[]),deletedBodyIds:Array.isArray(d.deletedBodyIds)?d.deletedBodyIds:(data.deletedBodyIds||[])};save();render()}catch(err){alert("復元できません: "+err.message)}}});
+el.addEventListener("change",async e=>{if(e.target.id==="exercise"){data.selected=e.target.value;save();render()}if(e.target.id==="growth-exercise"){growthExerciseId=e.target.value;render();return}if(window.SetFlowHistory.handleField(e.target))return;if(e.target.id==="history-date"){if(!window.SetFlowHistory.isEditing()&&/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)){historyDate=e.target.value;window.SetFlowHistory.dismissUndo();render()}}if(e.target.id==="import"&&e.target.files[0]){try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.exercises)||!Array.isArray(d.records)||d.records.length>100000||d.exercises.length>1000||!d.exercises.every(x=>typeof x.id==="string"&&typeof x.name==="string"&&Number.isFinite(x.rest))||!d.records.every(x=>Number.isFinite(x.weight)&&Number.isFinite(x.reps)&&typeof x.at==="string"))throw Error("データ形式が不正");if(!confirm("現在のデータを上書きしますか？"))return;data={exercises:d.exercises,records:d.records,selected:d.selected,timer:null,deletedRecordIds:Array.isArray(d.deletedRecordIds)?d.deletedRecordIds:[],bodyMeasurements:Array.isArray(d.bodyMeasurements)?d.bodyMeasurements:(data.bodyMeasurements||[]),deletedBodyIds:Array.isArray(d.deletedBodyIds)?d.deletedBodyIds:(data.deletedBodyIds||[])};save();render()}catch(err){alert("復元できません: "+err.message)}}});
 el.addEventListener("input",e=>window.SetFlowHistory.handleField(e.target));
 el.addEventListener("click",e=>{const bodyButton=e.target.closest("[data-body-action]");if(bodyButton&&window.SetFlowBody.handleClick(bodyButton))return;const historyButton=e.target.closest("[data-history-action]");if(historyButton&&window.SetFlowHistory.handle(historyButton))return;const b=e.target.closest("[data-action]");if(!b)return;const a=b.dataset.action;
+if(a==="history-view"){
+ const next=b.dataset.view;
+ if(next!=="records"&&next!=="growth")return;
+ if(next==="growth"&&window.SetFlowHistory.isEditing())return;
+ historyView=next;render();return;
+}
 if(a==="history-older"||a==="history-newer"||a==="history-latest"){
  if(window.SetFlowHistory.isEditing())return;
  const days=recordedDays();
