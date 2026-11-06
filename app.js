@@ -3,9 +3,9 @@ const KEY="setflow-mvp-v1";
 const seed=()=>({exercises:[{id:"bench",name:"ベンチプレス",rest:90},{id:"squat",name:"スクワット",rest:180},{id:"pull",name:"ラットプルダウン",rest:90}],records:[],selected:"bench",timer:null});
 let data;try{data=JSON.parse(localStorage.getItem(KEY))||seed();if(!Array.isArray(data.exercises)||!Array.isArray(data.records))data=seed()}catch{data=seed()}
 let tab="train",notified=false,historyDate=null,historyView="records",growthExerciseId=null;
-let lastTimerTapAt=0;
+let lastTimerTapAt=0,memoView="records",toastTimer=null;
 const SHEET_ID="1ie5gs_68OGtXD_4XBfF-SI70JowQhkMIku_e5QIWV20";
-const APP_VERSION="DEV-11.06-3";
+const APP_VERSION="DEV-11.06-4";
 let googleToken="", tokenExpiry=0, syncing=false, syncAgain=false, syncError="";
 let lastCloudCheck=0, restoredThisSession=0;
 let gisLoadPromise=null;
@@ -56,12 +56,48 @@ const historyRows=()=>{
  return nav+tools+empty+cards+window.SetFlowHistory.addExercise();
 };
 
+
+const exerciseMemo=exercise=>String(exercise?.memo??"");
+const recordCardHtml=(x,sets)=>{
+ const viewing=memoView!=="records";
+ const heading='<div class="record-heading"><button type="button" class="record-heading-toggle" data-action="memo-toggle" aria-expanded="'+viewing+'">'+(viewing?"種目メモ":"今日の記録")+' <span aria-hidden="true" class="record-heading-chevron">⌄</span></button><span class="record-total">'+sets.length+'セット</span></div>';
+ let body;
+ if(memoView==="edit"){
+  body='<div class="record-memo-edit"><label for="exercise-memo-draft">種目メモ</label>'+
+   '<textarea id="exercise-memo-draft" rows="5" maxlength="2000" placeholder="フォームの注意点などを記録">'+esc(exerciseMemo(x))+'</textarea>'+
+   '<div class="record-memo-actions"><button type="button" data-action="memo-cancel">取消</button><button type="button" class="record-memo-save" data-action="memo-save">保存</button></div></div>';
+ }else if(viewing){
+  body='<div class="record-memo-view"><p class="record-memo-text'+(exerciseMemo(x)?"":" is-empty")+'">'+(exerciseMemo(x)?esc(exerciseMemo(x)):"メモはありません")+'</p>'+
+   '<button type="button" class="record-memo-edit-button" data-action="memo-edit">編集</button></div>';
+ }else{
+  body=sets.map((r,i)=>'<div class="history-set record-set-row"><span class="history-set-index">'+(i+1)+'</span><span class="history-set-detail"><strong>'+r.weight+' kg</strong><span class="history-set-multiply">×</span>'+r.reps+' 回</span><button class="record-set-undo" data-action="undo" data-id="'+esc(r.id)+'">取消</button></div>').join("")||'<p class="muted">まだ記録がありません</p>';
+ }
+ return '<section class="card record-card">'+heading+body+'</section>';
+};
+function refreshRecordCard(){
+ if(tab!=="train")return;
+ const x=ex(),panel=el.querySelector(".record-card");
+ if(x&&panel)panel.outerHTML=recordCardHtml(x,today(x.id));
+}
+function showToast(message){
+ let node=document.getElementById("setflow-toast");
+ if(!node){
+  node=document.createElement("div");
+  node.id="setflow-toast";node.className="setflow-toast";node.setAttribute("role","status");node.setAttribute("aria-live","polite");
+  document.body.appendChild(node);
+ }
+ if(toastTimer!==null){clearTimeout(toastTimer);toastTimer=null}
+ node.textContent=message;
+ node.hidden=false;
+ toastTimer=setTimeout(()=>{node.hidden=true;node.textContent="";toastTimer=null},2600);
+}
+
 const timerHtml=()=>'<section class="card timer-card" data-action="timer-tap" role="button" tabindex="0" aria-label="タイマー。ダブルタップで停止"><div id="clock" class="clock" role="timer" aria-label="インターバルの残り時間" aria-live="off">00:00</div></section>';
 function render(){
  window.SetFlowKeypad.close();
  document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
  if(tab==="train"){const x=ex();if(!x){el.innerHTML=timerHtml()+'<button data-action="add">＋ 種目を追加</button>';tick();return}
- const prev=last(x.id),sets=today(x.id);el.innerHTML=timerHtml()+'<section class="card train-card"><select id="exercise" aria-label="種目">'+data.exercises.map(z=>'<option value="'+esc(z.id)+'" '+(z.id===x.id?"selected":"")+'>'+esc(z.name)+'</option>').join("")+'</select><div class="fields"><label>重量 (kg)<input id="weight" data-keypad="weight" type="text" inputmode="none" readonly min="0" max="2000" step="0.5" value="'+(prev?prev.weight:0)+'"></label><label>回数<input id="reps" data-keypad="reps" type="text" inputmode="none" readonly min="1" max="500" step="1" value="'+(prev?prev.reps:10)+'"></label></div><button class="primary" data-action="complete">✓ セット完了・休憩開始</button></section>'+'<section class="card record-card"><div class="record-heading"><h2>今日の記録</h2><span class="record-total" aria-label="今日の選択種目セット数">'+sets.length+'セット</span></div>'+(sets.map((r,i)=>'<div class="history-set record-set-row"><span class="history-set-index">'+(i+1)+'</span><span class="history-set-detail"><strong>'+r.weight+' kg</strong><span class="history-set-multiply">×</span>'+r.reps+' 回</span><button class="record-set-undo" data-action="undo" data-id="'+esc(r.id)+'">取消</button></div>').join("")||'<p class="muted">まだ記録がありません</p>')+'</section>';
+ const prev=last(x.id),sets=today(x.id);el.innerHTML=timerHtml()+'<section class="card train-card"><select id="exercise" aria-label="種目">'+data.exercises.map(z=>'<option value="'+esc(z.id)+'" '+(z.id===x.id?"selected":"")+'>'+esc(z.name)+'</option>').join("")+'</select><div class="fields"><label>重量 (kg)<input id="weight" data-keypad="weight" type="text" inputmode="none" readonly min="0" max="2000" step="0.5" value="'+(prev?prev.weight:0)+'"></label><label>回数<input id="reps" data-keypad="reps" type="text" inputmode="none" readonly min="1" max="500" step="1" value="'+(prev?prev.reps:10)+'"></label></div><button class="primary" data-action="complete">✓ セット完了・休憩開始</button></section>'+recordCardHtml(x,sets);
  }else if(tab==="history"){el.innerHTML='<div class="history-view-tabs" role="group" aria-label="履歴の表示">'+
  '<button type="button" data-action="history-view" data-view="records" '+(historyView==="records"?'class="active" aria-pressed="true"':'aria-pressed="false"')+'>記録</button>'+
  '<button type="button" data-action="history-view" data-view="growth" '+(historyView==="growth"?'class="active" aria-pressed="true"':'aria-pressed="false"')+(window.SetFlowHistory.isEditing()?' disabled':'')+'>成長</button></div>'+
@@ -70,10 +106,34 @@ function render(){
  tick();
 }
 function edit(id){const x=data.exercises.find(x=>x.id===id);const name=prompt("種目名",x?.name||"");if(name===null||!name.trim())return;const rest=prompt("休憩時間（秒）",String(x?.rest??90));if(rest===null)return;const n=Number(rest);if(!Number.isInteger(n)||n<0||n>3600){alert("0～3600秒で入力してください");return}if(x){x.name=name.trim();x.rest=n}else{const id=crypto.randomUUID();data.exercises.push({id,name:name.trim(),rest:n});data.selected=id}save();render()}
-el.addEventListener("change",async e=>{if(e.target.id==="exercise"){data.selected=e.target.value;save();render()}if(e.target.id==="growth-exercise"){growthExerciseId=e.target.value;render();return}if(window.SetFlowHistory.handleField(e.target))return;if(e.target.id==="history-date"){if(!window.SetFlowHistory.isEditing()&&/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)){historyDate=e.target.value;window.SetFlowHistory.dismissUndo();render()}}if(e.target.id==="import"&&e.target.files[0]){try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.exercises)||!Array.isArray(d.records)||d.records.length>100000||d.exercises.length>1000||!d.exercises.every(x=>typeof x.id==="string"&&typeof x.name==="string"&&Number.isFinite(x.rest))||!d.records.every(x=>Number.isFinite(x.weight)&&Number.isFinite(x.reps)&&typeof x.at==="string"))throw Error("データ形式が不正");if(!confirm("現在のデータを上書きしますか？"))return;data={exercises:d.exercises,records:d.records,selected:d.selected,timer:null,deletedRecordIds:Array.isArray(d.deletedRecordIds)?d.deletedRecordIds:[],bodyMeasurements:Array.isArray(d.bodyMeasurements)?d.bodyMeasurements:(data.bodyMeasurements||[]),deletedBodyIds:Array.isArray(d.deletedBodyIds)?d.deletedBodyIds:(data.deletedBodyIds||[])};save();render()}catch(err){alert("復元できません: "+err.message)}}});
+el.addEventListener("change",async e=>{if(e.target.id==="exercise"){memoView="records";data.selected=e.target.value;save();render()}if(e.target.id==="growth-exercise"){growthExerciseId=e.target.value;render();return}if(window.SetFlowHistory.handleField(e.target))return;if(e.target.id==="history-date"){if(!window.SetFlowHistory.isEditing()&&/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)){historyDate=e.target.value;window.SetFlowHistory.dismissUndo();render()}}if(e.target.id==="import"&&e.target.files[0]){try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.exercises)||!Array.isArray(d.records)||d.records.length>100000||d.exercises.length>1000||!d.exercises.every(x=>typeof x.id==="string"&&typeof x.name==="string"&&Number.isFinite(x.rest))||!d.records.every(x=>Number.isFinite(x.weight)&&Number.isFinite(x.reps)&&typeof x.at==="string"))throw Error("データ形式が不正");if(!confirm("現在のデータを上書きしますか？"))return;data={exercises:d.exercises,records:d.records,selected:d.selected,timer:null,deletedRecordIds:Array.isArray(d.deletedRecordIds)?d.deletedRecordIds:[],bodyMeasurements:Array.isArray(d.bodyMeasurements)?d.bodyMeasurements:(data.bodyMeasurements||[]),deletedBodyIds:Array.isArray(d.deletedBodyIds)?d.deletedBodyIds:(data.deletedBodyIds||[])};save();render()}catch(err){alert("復元できません: "+err.message)}}});
 el.addEventListener("input",e=>window.SetFlowHistory.handleField(e.target));
 el.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.closest?.(".timer-card")){e.preventDefault();e.target.closest(".timer-card").click()}});
-el.addEventListener("click",e=>{const bodyButton=e.target.closest("[data-body-action]");if(bodyButton&&window.SetFlowBody.handleClick(bodyButton))return;const historyButton=e.target.closest("[data-history-action]");if(historyButton&&window.SetFlowHistory.handle(historyButton))return;const b=e.target.closest("[data-action]");if(!b)return;const a=b.dataset.action;
+el.addEventListener("click",e=>{
+ if(tab==="train"&&memoView!=="records"&&!e.target.closest('[data-action^="memo-"]')){
+  memoView="records";refreshRecordCard();
+ }
+ const bodyButton=e.target.closest("[data-body-action]");if(bodyButton&&window.SetFlowBody.handleClick(bodyButton))return;const historyButton=e.target.closest("[data-history-action]");if(historyButton&&window.SetFlowHistory.handle(historyButton))return;const b=e.target.closest("[data-action]");if(!b)return;const a=b.dataset.action;
+if(a==="memo-toggle"){
+ memoView=memoView==="records"?"view":"records";
+ refreshRecordCard();return;
+}
+if(a==="memo-edit"){
+ memoView="edit";refreshRecordCard();document.getElementById("exercise-memo-draft")?.focus();return;
+}
+if(a==="memo-cancel"){
+ memoView="view";refreshRecordCard();return;
+}
+if(a==="memo-save"){
+ const x=ex(),input=document.getElementById("exercise-memo-draft");
+ if(!x||!input)return;
+ const previous=x.memo,next=input.value.slice(0,2000).trim();
+ if(next!==exerciseMemo(x)){
+  x.memo=next;
+  if(!save()){x.memo=previous;return}
+ }
+ memoView="view";refreshRecordCard();return;
+}
 if(a==="history-view"){
  const next=b.dataset.view;
  if(next!=="records"&&next!=="growth")return;
@@ -121,7 +181,7 @@ function tick(){
  node.setAttribute("aria-label",overtime?"インターバル終了からの経過時間":"インターバルの残り時間");
  if(left<=0&&!notified){notified=true;try{navigator.vibrate?.([150,100,150]);const A=window.AudioContext||window.webkitAudioContext;if(A){const ctx=new A(),o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.value=.07;o.start();o.stop(ctx.currentTime+.2);o.onended=()=>ctx.close()}}catch{}}
 }
-document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{if(tab==="history"&&b.dataset.tab!=="history")window.SetFlowHistory.dismissUndo();tab=b.dataset.tab;render();if(tab==="body"&&connected())window.SetFlowBody.sync().catch(console.warn)});document.addEventListener("visibilitychange",()=>{if(!document.hidden){tick();updateSyncUI();trySync()}});window.addEventListener("online",trySync);
+document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{if(tab==="history"&&b.dataset.tab!=="history")window.SetFlowHistory.dismissUndo();memoView="records";tab=b.dataset.tab;render();if(tab==="body"&&connected())window.SetFlowBody.sync().catch(console.warn)});document.addEventListener("visibilitychange",()=>{if(!document.hidden){tick();updateSyncUI();trySync()}});window.addEventListener("online",trySync);
 window.SetFlowKeypad.init();
 window.SetFlowHistory.init({data:()=>data,save,refresh:render,setTab:v=>{tab=v},getDate:()=>historyDate,setDate:v=>{historyDate=v},connected,sync:()=>syncToSheet().catch(console.warn)});
 window.SetFlowBody.init({getData:()=>data,save,request:sheetRequest,connected,refresh:render,activeTab:()=>tab,triggerSync:()=>syncToSheet().catch(console.warn)});
@@ -286,9 +346,9 @@ async function syncToSheet(){
 }
 
 async function checkAppUpdate(){
- if(!navigator.onLine){alert("インターネット接続後に再試行してください");return}
+ if(!navigator.onLine){showToast("ネット接続後に再試行してください");return}
  const button=document.querySelector('[data-action="check-update"]');
- if(button){button.disabled=true;button.textContent="更新を確認中…"}
+ if(button){button.disabled=true;button.setAttribute("aria-busy","true")}
  try{
   // 毎回一意のURLで取得。以前のキャッシュ優先Service Workerにも対応。
   const url="./build.json?check="+Date.now();
@@ -296,7 +356,7 @@ async function checkAppUpdate(){
   if(!response.ok)throw Error("最新版の確認に失敗しました（HTTP "+response.status+"）");
   const latest=await response.json();
   if(!latest.version||typeof latest.version!=="string")throw Error("更新情報を取得できませんでした");
-  if(latest.version===APP_VERSION){alert("現在、最新版（"+APP_VERSION+"）です");return}
+  if(latest.version===APP_VERSION){showToast("最新版です（"+APP_VERSION+"）");return}
   if(!confirm("新しいバージョン "+latest.version+" に更新しますか？"))return;
   try{
    const registration=await navigator.serviceWorker?.getRegistration();
@@ -306,6 +366,6 @@ async function checkAppUpdate(){
   const newUrl=new URL("./",window.location.href);
   newUrl.searchParams.set("app-update",String(Date.now()));
   window.location.replace(newUrl.href);
- }catch(e){alert(e.message||"更新の確認に失敗しました")}
- finally{if(button){button.disabled=false;button.textContent=APP_VERSION}}
+ }catch(e){showToast(e.message||"更新の確認に失敗しました")}
+ finally{if(button){button.disabled=false;button.removeAttribute("aria-busy")}}
 }
