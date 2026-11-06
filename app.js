@@ -3,8 +3,9 @@ const KEY="setflow-mvp-v1";
 const seed=()=>({exercises:[{id:"bench",name:"ベンチプレス",rest:90},{id:"squat",name:"スクワット",rest:180},{id:"pull",name:"ラットプルダウン",rest:90}],records:[],selected:"bench",timer:null});
 let data;try{data=JSON.parse(localStorage.getItem(KEY))||seed();if(!Array.isArray(data.exercises)||!Array.isArray(data.records))data=seed()}catch{data=seed()}
 let tab="train",notified=false,historyDate=null,historyView="records",growthExerciseId=null;
+let lastTimerTapAt=0;
 const SHEET_ID="1ie5gs_68OGtXD_4XBfF-SI70JowQhkMIku_e5QIWV20";
-const APP_VERSION="DEV-11.06-2";
+const APP_VERSION="DEV-11.06-3";
 let googleToken="", tokenExpiry=0, syncing=false, syncAgain=false, syncError="";
 let lastCloudCheck=0, restoredThisSession=0;
 let gisLoadPromise=null;
@@ -55,7 +56,7 @@ const historyRows=()=>{
  return nav+tools+empty+cards+window.SetFlowHistory.addExercise();
 };
 
-const timerHtml=()=>'<section class="card timer-card"><div id="clock" class="clock" role="timer" aria-label="インターバルの残り時間" aria-live="off">00:00</div></section>';
+const timerHtml=()=>'<section class="card timer-card" data-action="timer-tap" role="button" tabindex="0" aria-label="タイマー。ダブルタップで停止"><div id="clock" class="clock" role="timer" aria-label="インターバルの残り時間" aria-live="off">00:00</div></section>';
 function render(){
  window.SetFlowKeypad.close();
  document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
@@ -65,7 +66,7 @@ function render(){
  '<button type="button" data-action="history-view" data-view="records" '+(historyView==="records"?'class="active" aria-pressed="true"':'aria-pressed="false"')+'>記録</button>'+
  '<button type="button" data-action="history-view" data-view="growth" '+(historyView==="growth"?'class="active" aria-pressed="true"':'aria-pressed="false"')+(window.SetFlowHistory.isEditing()?' disabled':'')+'>成長</button></div>'+
  (historyView==="growth"?window.SetFlowGrowth.render(data,growthExerciseId||data.selected):historyRows())}else if(tab==="body"){el.innerHTML=window.SetFlowBody.render()}
- else{el.innerHTML='<h1>設定</h1><section class="card"><h2>種目</h2>'+data.exercises.map(x=>'<div class="row item"><span>'+esc(x.name)+'<br><small class="muted">休憩 '+fmt(x.rest)+'</small></span><button data-action="editid" data-id="'+esc(x.id)+'">編集</button></div>').join("")+'<p><button data-action="add">＋ 種目追加</button></p></section>'+window.SetFlowHistory.renderTrash()+'<section class="card"><h2>バックアップ</h2><p class="warning">端末内に記録を保存します。サイトデータの消去に備えてJSONバックアップを保管してください。</p><button data-action="export">JSONを書き出す</button><p><label>バックアップを復元<input id="import" type="file" accept=".json,application/json"></label></p></section>'+syncSettingsHtml()}
+ else{el.innerHTML='<div class="settings-heading"><h1>設定</h1><button type="button" class="settings-version-button" data-action="check-update" aria-label="現在のバージョン '+APP_VERSION+'。タップして更新を確認">'+APP_VERSION+'</button></div><section class="card"><h2>種目</h2>'+data.exercises.map(x=>'<div class="row item"><span>'+esc(x.name)+'<br><small class="muted">休憩 '+fmt(x.rest)+'</small></span><button data-action="editid" data-id="'+esc(x.id)+'">編集</button></div>').join("")+'<p><button data-action="add">＋ 種目追加</button></p></section>'+window.SetFlowHistory.renderTrash()+'<section class="card"><h2>バックアップ</h2><p class="warning">端末内に記録を保存します。サイトデータの消去に備えてJSONバックアップを保管してください。</p><button data-action="export">JSONを書き出す</button><p><label>バックアップを復元<input id="import" type="file" accept=".json,application/json"></label></p></section>'+syncSettingsHtml()}
  tick();
 }
 function edit(id){const x=data.exercises.find(x=>x.id===id);const name=prompt("種目名",x?.name||"");if(name===null||!name.trim())return;const rest=prompt("休憩時間（秒）",String(x?.rest??90));if(rest===null)return;const n=Number(rest);if(!Number.isInteger(n)||n<0||n>3600){alert("0～3600秒で入力してください");return}if(x){x.name=name.trim();x.rest=n}else{const id=crypto.randomUUID();data.exercises.push({id,name:name.trim(),rest:n});data.selected=id}save();render()}
@@ -84,7 +85,27 @@ if(a==="history-older"||a==="history-newer"||a==="history-latest"){
  const selected=historyDate||days[0];
  const next=a==="history-latest"?days[0]:a==="history-older"?days.find(day=>day<selected):[...days].reverse().find(day=>day>selected);
  if(next){historyDate=next;window.SetFlowHistory.dismissUndo();render()}return;
-}if(a==="add")edit();if(a==="edit")edit(ex()?.id);if(a==="editid")edit(b.dataset.id);if(a==="complete"){const x=ex(),wi=document.getElementById("weight"),ri=document.getElementById("reps");if(!x||!wi.value||!ri.value)return;const w=Number(wi.value),r=Number(ri.value);if(!Number.isFinite(w)||w<0||w>2000||!Number.isInteger(r)||r<1||r>500){alert("重量・回数を確認してください");return}b.disabled=true;data.records.push({id:crypto.randomUUID(),exerciseId:x.id,exerciseName:x.name,weight:w,reps:r,restSeconds:x.rest,at:new Date().toISOString(),dirty:true});data.timer=x.rest>0?{end:Date.now()+x.rest*1000}:null;notified=false;save();render();if(connected())syncToSheet().catch(console.warn)}if(a==="undo"){const r=data.records.find(x=>x.id===b.dataset.id);if(r)window.SetFlowHistory.handle({dataset:{historyAction:"edit",id:r.id}})}if(a==="check-update"){checkAppUpdate()}if(a==="google-connect"){connectGoogle()}if(a==="google-sync"){if(!connected())connectGoogle();else syncToSheet().catch(err=>{syncError=err.message;updateSyncUI()})}if(a==="export"){const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const u=URL.createObjectURL(blob),link=document.createElement("a");link.href=u;link.download="setflow-backup.json";link.click();setTimeout(()=>URL.revokeObjectURL(u),3000)}});
+}if(a==="add")edit();if(a==="edit")edit(ex()?.id);if(a==="editid")edit(b.dataset.id);if(a==="complete"){const x=ex(),wi=document.getElementById("weight"),ri=document.getElementById("reps");if(!x||!wi.value||!ri.value)return;const w=Number(wi.value),r=Number(ri.value);if(!Number.isFinite(w)||w<0||w>2000||!Number.isInteger(r)||r<1||r>500){alert("重量・回数を確認してください");return}b.disabled=true;data.records.push({id:crypto.randomUUID(),exerciseId:x.id,exerciseName:x.name,weight:w,reps:r,restSeconds:x.rest,at:new Date().toISOString(),dirty:true});data.timer=x.rest>0?{end:Date.now()+x.rest*1000}:null;lastTimerTapAt=0;notified=false;save();render();if(connected())syncToSheet().catch(console.warn)}if(a==="undo"){
+ const r=data.records.find(x=>x.id===b.dataset.id&&!x.deletedAt);
+ if(!r)return;
+ if(!confirm("このセットを取り消しますか？\n"+r.exerciseName+" / "+r.weight+" kg × "+r.reps+" 回\n取り消したセットは設定から復元できます。"))return;
+ const previous={deletedAt:r.deletedAt,dirty:r.dirty,localEditAt:r.localEditAt};
+ r.deletedAt=new Date().toISOString();r.dirty=true;r.localEditAt=Date.now();
+ if(!save()){Object.assign(r,previous);return}
+ render();
+ if(connected())syncToSheet().catch(console.warn);
+}if(a==="timer-tap"){
+ if(!data.timer){lastTimerTapAt=0;return}
+ const now=Date.now();
+ if(lastTimerTapAt&&now-lastTimerTapAt<=450){
+  const previous=data.timer;
+  data.timer=null;lastTimerTapAt=0;
+  if(!save()){data.timer=previous;tick();return}
+  notified=false;tick();
+ }else lastTimerTapAt=now;
+ return;
+}
+if(a==="check-update"){checkAppUpdate()}if(a==="google-connect"){connectGoogle()}if(a==="google-sync"){if(!connected())connectGoogle();else syncToSheet().catch(err=>{syncError=err.message;updateSyncUI()})}if(a==="export"){const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const u=URL.createObjectURL(blob),link=document.createElement("a");link.href=u;link.download="setflow-backup.json";link.click();setTimeout(()=>URL.revokeObjectURL(u),3000)}});
 function tick(){
  const node=document.getElementById("clock");if(!node)return;
  if(!data.timer){
@@ -94,7 +115,7 @@ function tick(){
   return;
  }
  const left=data.timer.end-Date.now(),overtime=left<0;
- node.textContent=overtime?"+"+fmt(Math.floor(-left/1000)):fmt(left/1000);
+ node.textContent=overtime?"+"+fmt(Math.min(600,Math.floor(-left/1000))):fmt(left/1000);
  node.classList.toggle("is-overtime",overtime);
  node.setAttribute("aria-label",overtime?"インターバル終了からの経過時間":"インターバルの残り時間");
  if(left<=0&&!notified){notified=true;try{navigator.vibrate?.([150,100,150]);const A=window.AudioContext||window.webkitAudioContext;if(A){const ctx=new A(),o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.value=.07;o.start();o.stop(ctx.currentTime+.2);o.onended=()=>ctx.close()}}catch{}}
@@ -124,7 +145,7 @@ function syncSettingsHtml(){
  '<p class="muted" id="sync-status">'+esc(syncSummary())+'</p>'+
  '<div class="actions"><button data-action="google-connect">Googleで接続 / 再接続</button><button data-action="google-sync">記録を同期（送受信）</button></div>'+
  '<p class="warning">筋トレ履歴と体組成の測定履歴を、それぞれのGoogleスプレッドシートと同期します。期限切れ時は再接続してください。</p></section>'+
- '<section class="app-update"><button type="button" data-action="check-update">アプリの更新を確認</button><p class="muted" id="app-version">Version '+APP_VERSION+'</p></section>';
+ '';
 }
 function loadGIS(){
  if(window.google?.accounts?.oauth2)return Promise.resolve();
@@ -285,5 +306,5 @@ async function checkAppUpdate(){
   newUrl.searchParams.set("app-update",String(Date.now()));
   window.location.replace(newUrl.href);
  }catch(e){alert(e.message||"更新の確認に失敗しました")}
- finally{if(button){button.disabled=false;button.textContent="アプリの更新を確認"}}
+ finally{if(button){button.disabled=false;button.textContent=APP_VERSION}}
 }
