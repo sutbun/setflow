@@ -1,5 +1,5 @@
 {
-  "version": "DEV-11.06-2",
+  "version": "DEV-11.06-3",
   "build": "2026-11-06",
-  "description": "Continue rest timer as elapsed overtime after zero, in green"
+  "description": "Double-tap timer to stop, cap overtime at 10 minutes, cancel today's set in place, and update via settings version button"
 }
