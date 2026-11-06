@@ -52,8 +52,8 @@ window.SetFlowHistory=(()=>{
   const attrs='data-id="'+esc(r.id)+'"';
   const exercise=db().exercises.find(x=>x.id===r.exerciseId);
   const options=db().exercises.map(x=>'<option value="'+esc(x.id)+'" '+(x.id===r.exerciseId?"selected":"")+'>'+esc(x.name)+'</option>').join("");
-  const a='<label class="history-number-field"><input '+attrs+' data-history-field="weight" data-keypad="weight" aria-label="重量" type="number" inputmode="none" readonly min="0" max="2000" step="0.5" value="'+esc(r.weight)+'"><span>kg</span></label>';
-  const b='<label class="history-number-field"><input '+attrs+' data-history-field="reps" data-keypad="reps" aria-label="回数" type="number" inputmode="none" readonly min="1" max="500" step="1" value="'+esc(r.reps)+'"><span>回</span></label>';
+  const a='<label class="history-number-field"><input '+attrs+' data-history-field="weight" data-keypad="weight" aria-label="重量" type="text" inputmode="none" readonly min="0" max="2000" step="0.5" value="'+esc(r.weight)+'"><span>kg</span></label>';
+  const b='<label class="history-number-field"><input '+attrs+' data-history-field="reps" data-keypad="reps" aria-label="回数" type="text" inputmode="none" readonly min="1" max="500" step="1" value="'+esc(r.reps)+'"><span>回</span></label>';
   return '<div class="history-edit-row"><span class="history-edit-index">'+(index+1)+'</span>'+a+'<span class="history-times">×</span>'+b+
    '<button class="history-trash-button" type="button" data-history-action="delete" '+attrs+' aria-label="このセットを削除"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 3h4l1 3H9l1-3Zm-4 4 1 14h10l1-14M10 11v6M14 11v6"/></svg></button></div>'+
    '<details class="history-row-more"><summary>種目・日時</summary><label>種目<select '+attrs+' data-history-field="exerciseId">'+options+'</select></label>'+
