@@ -1,5 +1,5 @@
 {
-  "version": "DEV-11.06-3",
+  "version": "DEV-11.06-4",
   "build": "2026-11-06",
-  "description": "Double-tap timer to stop, cap overtime at 10 minutes, cancel today's set in place, and update via settings version button"
+  "description": "Nonblocking fixed update notification and inline exercise memo viewing/editing"
 }
