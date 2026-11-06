@@ -200,3 +200,6 @@ body.keypad-visible main{padding-bottom:calc(320px + env(safe-area-inset-bottom)
 .kp-done{background:#304462}
 .kp-record{background:#517bff}
 @media(max-height:650px){.setflow-keypad{padding-top:4px}.kp-adjustments button{min-height:35px}.kp-digits button{height:36px}.kp-footer button{min-height:37px}.kp-header{margin-bottom:4px}}
+
+/* After the rest countdown finishes, show elapsed overtime in green. */
+.timer-card .clock.is-overtime{color:#91d3ac}
