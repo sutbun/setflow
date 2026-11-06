@@ -203,3 +203,12 @@ body.keypad-visible main{padding-bottom:calc(320px + env(safe-area-inset-bottom)
 
 /* After the rest countdown finishes, show elapsed overtime in green. */
 .timer-card .clock.is-overtime{color:#91d3ac}
+
+/* Timer: double-tap to clear, without iOS double-tap zoom. */
+.timer-card[data-action="timer-tap"]{touch-action:manipulation;cursor:pointer;user-select:none;-webkit-user-select:none}
+.timer-card[data-action="timer-tap"]:focus-visible{outline:2px solid #86a7ff;outline-offset:2px}
+/* Update/version button at the top-right of Settings. */
+.settings-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:4px 2px 8px}
+.settings-heading h1{margin:0}
+.settings-version-button{background:#263851;border:1px solid #405571;color:#b4c6df;border-radius:10px;font-size:12px;line-height:1.2;font-weight:600;white-space:nowrap;padding:10px 11px;font-variant-numeric:tabular-nums}
+.settings-version-button:disabled{opacity:.65;white-space:normal}
