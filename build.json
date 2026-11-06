@@ -1,5 +1,5 @@
 {
-  "version": "DEV-11.06-1",
+  "version": "DEV-11.06-2",
   "build": "2026-11-06",
-  "description": "Custom workout keypad: numeric entry and +/-5, +/-2.5 kg quick adjustments"
+  "description": "Continue rest timer as elapsed overtime after zero, in green"
 }
