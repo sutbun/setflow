@@ -4,7 +4,7 @@ const seed=()=>({exercises:[{id:"bench",name:"ベンチプレス",rest:90},{id:"
 let data;try{data=JSON.parse(localStorage.getItem(KEY))||seed();if(!Array.isArray(data.exercises)||!Array.isArray(data.records))data=seed()}catch{data=seed()}
 let tab="train",notified=false,historyDate=null,historyView="records",growthExerciseId=null;
 const SHEET_ID="1ie5gs_68OGtXD_4XBfF-SI70JowQhkMIku_e5QIWV20";
-const APP_VERSION="DEV-11.06-1";
+const APP_VERSION="DEV-11.06-2";
 let googleToken="", tokenExpiry=0, syncing=false, syncAgain=false, syncError="";
 let lastCloudCheck=0, restoredThisSession=0;
 let gisLoadPromise=null;
@@ -85,7 +85,20 @@ if(a==="history-older"||a==="history-newer"||a==="history-latest"){
  const next=a==="history-latest"?days[0]:a==="history-older"?days.find(day=>day<selected):[...days].reverse().find(day=>day>selected);
  if(next){historyDate=next;window.SetFlowHistory.dismissUndo();render()}return;
 }if(a==="add")edit();if(a==="edit")edit(ex()?.id);if(a==="editid")edit(b.dataset.id);if(a==="complete"){const x=ex(),wi=document.getElementById("weight"),ri=document.getElementById("reps");if(!x||!wi.value||!ri.value)return;const w=Number(wi.value),r=Number(ri.value);if(!Number.isFinite(w)||w<0||w>2000||!Number.isInteger(r)||r<1||r>500){alert("重量・回数を確認してください");return}b.disabled=true;data.records.push({id:crypto.randomUUID(),exerciseId:x.id,exerciseName:x.name,weight:w,reps:r,restSeconds:x.rest,at:new Date().toISOString(),dirty:true});data.timer=x.rest>0?{end:Date.now()+x.rest*1000}:null;notified=false;save();render();if(connected())syncToSheet().catch(console.warn)}if(a==="undo"){const r=data.records.find(x=>x.id===b.dataset.id);if(r)window.SetFlowHistory.handle({dataset:{historyAction:"edit",id:r.id}})}if(a==="check-update"){checkAppUpdate()}if(a==="google-connect"){connectGoogle()}if(a==="google-sync"){if(!connected())connectGoogle();else syncToSheet().catch(err=>{syncError=err.message;updateSyncUI()})}if(a==="export"){const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const u=URL.createObjectURL(blob),link=document.createElement("a");link.href=u;link.download="setflow-backup.json";link.click();setTimeout(()=>URL.revokeObjectURL(u),3000)}});
-function tick(){const node=document.getElementById("clock");if(!node)return;if(!data.timer){node.textContent="00:00";return}const left=data.timer.end-Date.now();node.textContent=fmt(left/1000);if(left<=0&&!notified){notified=true;try{navigator.vibrate?.([150,100,150]);const A=window.AudioContext||window.webkitAudioContext;if(A){const ctx=new A(),o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.value=.07;o.start();o.stop(ctx.currentTime+.2);o.onended=()=>ctx.close()}}catch{}}}
+function tick(){
+ const node=document.getElementById("clock");if(!node)return;
+ if(!data.timer){
+  node.textContent="00:00";
+  node.classList.remove("is-overtime");
+  node.setAttribute("aria-label","インターバルの残り時間");
+  return;
+ }
+ const left=data.timer.end-Date.now(),overtime=left<0;
+ node.textContent=overtime?"+"+fmt(Math.floor(-left/1000)):fmt(left/1000);
+ node.classList.toggle("is-overtime",overtime);
+ node.setAttribute("aria-label",overtime?"インターバル終了からの経過時間":"インターバルの残り時間");
+ if(left<=0&&!notified){notified=true;try{navigator.vibrate?.([150,100,150]);const A=window.AudioContext||window.webkitAudioContext;if(A){const ctx=new A(),o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.value=.07;o.start();o.stop(ctx.currentTime+.2);o.onended=()=>ctx.close()}}catch{}}
+}
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{if(tab==="history"&&b.dataset.tab!=="history")window.SetFlowHistory.dismissUndo();tab=b.dataset.tab;render();if(tab==="body"&&connected())window.SetFlowBody.sync().catch(console.warn)});document.addEventListener("visibilitychange",()=>{if(!document.hidden){tick();updateSyncUI();trySync()}});window.addEventListener("online",trySync);
 window.SetFlowKeypad.init();
 window.SetFlowHistory.init({data:()=>data,save,refresh:render,setTab:v=>{tab=v},getDate:()=>historyDate,setDate:v=>{historyDate=v},connected,sync:()=>syncToSheet().catch(console.warn)});
