@@ -110,7 +110,7 @@ el.addEventListener("change",async e=>{if(e.target.id==="exercise"){memoView="re
 el.addEventListener("input",e=>window.SetFlowHistory.handleField(e.target));
 el.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.closest?.(".timer-card")){e.preventDefault();e.target.closest(".timer-card").click()}});
 el.addEventListener("click",e=>{
- if(tab==="train"&&memoView!=="records"&&!e.target.closest('[data-action^="memo-"]')){
+ if(tab==="train"&&memoView!=="records"&&!e.target.closest('[data-action^="memo-"]')&&!e.target.closest(".record-memo-edit")){
   memoView="records";refreshRecordCard();
  }
  const bodyButton=e.target.closest("[data-body-action]");if(bodyButton&&window.SetFlowBody.handleClick(bodyButton))return;const historyButton=e.target.closest("[data-history-action]");if(historyButton&&window.SetFlowHistory.handle(historyButton))return;const b=e.target.closest("[data-action]");if(!b)return;const a=b.dataset.action;
