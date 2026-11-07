@@ -42,6 +42,14 @@ window.SetFlowKeypad=(()=>{
   if(root)root.hidden=true;
   document.body.classList.remove("keypad-visible");
  }
+ function otherInput(input){
+  const otherKind=input?.dataset?.keypad==="weight"?"reps":"weight";
+  if(input?.id==="weight"||input?.id==="reps"){
+   const other=document.getElementById(otherKind);
+   return other?.dataset?.keypad===otherKind?other:null;
+  }
+  return input?.closest?.(".history-edit-row")?.querySelector?.('input[data-keypad="'+otherKind+'"]')||null;
+ }
  function open(input){
   if(!input||!input.dataset?.keypad)return;
   const selectedKind=input.dataset.keypad;
@@ -56,14 +64,14 @@ window.SetFlowKeypad=(()=>{
    const label=token==="dot"?".":token==="back"?"⌫":token;
    return '<button type="button" data-kp="'+token+'" '+(token==="dot"&&!isWeight()?"disabled":"")+' aria-label="'+(token==="back"?"一文字削除":token==="dot"?"小数点":token)+'">'+label+'</button>';
   }).join("");
-  const workout=active.id==="weight"||active.id==="reps";
+  const alternate=otherInput(active);
   root.innerHTML='<div class="kp-shell" role="dialog" aria-label="SetFlow 数字入力">'+
    '<div class="kp-header"><div><span class="kp-label">'+c.title+'</span><strong id="kp-value"></strong><small>'+c.unit+'</small></div>'+
    '<button type="button" class="kp-close" data-kp="close" aria-label="閉じる">×</button></div>'+
    '<div class="kp-adjustments">'+row+'</div>'+
    '<div class="kp-digits">'+digits+'</div>'+
    '<div class="kp-footer"><button type="button" data-kp="close" class="kp-done">完了</button>'+
-   (workout?'<button type="button" data-kp="complete" class="kp-record">セット完了・休憩開始</button>':"")+'</div></div>';
+   (alternate?'<button type="button" data-kp="switch" class="kp-record" aria-label="'+(isWeight()?"回数":"重量")+'の入力へ切り替え">'+(isWeight()?"回数へ →":"← 重量へ")+'</button>':"")+'</div></div>';
   root.hidden=false;document.body.classList.add("keypad-visible");
   refresh();
   // readOnly + inputmode=none suppress the native numeric keyboard on iPhone.
@@ -74,10 +82,9 @@ window.SetFlowKeypad=(()=>{
  function key(token){
   if(!active)return;
   if(token==="close"){close();return}
-  if(token==="complete"){
-   const action=document.querySelector('[data-action="complete"]');
-   close();
-   action?.click();
+  if(token==="switch"){
+   const other=otherInput(active);
+   if(other)open(other);
    return;
   }
   const result=compute(active.value,token,kind,replaceNext);
