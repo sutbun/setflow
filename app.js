@@ -5,7 +5,7 @@ let data;try{data=JSON.parse(localStorage.getItem(KEY))||seed();if(!Array.isArra
 let tab="train",notified=false,historyDate=null,historyView="records",growthExerciseId=null;
 let lastTimerTapAt=0,memoView="records",toastTimer=null;
 const SHEET_ID="1ie5gs_68OGtXD_4XBfF-SI70JowQhkMIku_e5QIWV20";
-const APP_VERSION="DEV-11.06-4";
+const APP_VERSION="DEV-11.07-1";
 let googleToken="", tokenExpiry=0, syncing=false, syncAgain=false, syncError="";
 let lastCloudCheck=0, restoredThisSession=0;
 let gisLoadPromise=null;
