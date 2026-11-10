@@ -1,5 +1,5 @@
 {
-  "version": "DEV-11.07-1",
-  "build": "2026-11-07",
-  "description": "Keypad action switches between weight and reps instead of submitting a workout set"
+  "version": "DEV-11.10-1",
+  "build": "2026-11-10",
+  "description": "Fix permanently pending sync status for locally deleted and already uploaded workout records; show workout/body breakdown and body sync errors"
 }
