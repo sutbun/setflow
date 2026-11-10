@@ -322,9 +322,16 @@ async function syncToSheet(){
    if(legacyDeleted.has(r.id))continue;
    const existing=cloud.get(r.id);
    if(!r.dirty&&existing){
-    // A row confirmed on Google may still carry a stale local sheetSynced=false flag.
-    r.sheetSynced=true;
-    continue;
+    // Repair stale sync flags only after confirming the cloud copy matches.
+    // If it differs, preserve the local recent edit and send it below.
+    const remote=decodeCloudRecord(rows[existing.row-2]);
+    const rest=r.restSeconds??data.exercises.find(ex=>ex.id===r.exerciseId)?.rest??90;
+    const matches=remote&&r.at===remote.at&&r.exerciseId===remote.exerciseId&&
+     r.exerciseName===remote.exerciseName&&Number(r.weight)===remote.weight&&
+     Number(r.reps)===remote.reps&&Number(rest)===remote.restSeconds&&
+     Boolean(r.deletedAt)===Boolean(remote.deletedAt);
+    if(matches){r.sheetSynced=true;continue}
+    r.dirty=true;
    }
    if(r.deletedAt&&!existing){
     // Google has confirmed that this cancelled-before-upload set is absent.
