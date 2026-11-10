@@ -356,8 +356,8 @@ async function syncToSheet(){
   }
   if(!save())throw Error("端末内への同期状態保存に失敗しました");
   lastCloudCheck=Date.now();
-  try{await window.SetFlowBody.sync()}catch(err){console.warn("Body composition sync failed:",err)}
-  if(received.skipped)syncError="形式不正の記録 "+received.skipped+" 件を読み飛ばしました";
+  try{await window.SetFlowBody.sync()}catch(err){console.warn("Body composition sync failed:",err);syncError="体組成: "+(err?.message||String(err))}
+  if(received.skipped&&!syncError)syncError="形式不正の記録 "+received.skipped+" 件を読み飛ばしました";
  }catch(e){syncError=e.message;throw e}
  finally{
   syncing=false;updateSyncUI();
