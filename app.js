@@ -5,13 +5,15 @@ let data;try{data=JSON.parse(localStorage.getItem(KEY))||seed();if(!Array.isArra
 let tab="train",notified=false,historyDate=null,historyView="records",growthExerciseId=null;
 let lastTimerTapAt=0,memoView="records",toastTimer=null;
 const SHEET_ID="1ie5gs_68OGtXD_4XBfF-SI70JowQhkMIku_e5QIWV20";
-const APP_VERSION="DEV-11.07-1";
+const APP_VERSION="DEV-11.10-1";
 let googleToken="", tokenExpiry=0, syncing=false, syncAgain=false, syncError="";
 let lastCloudCheck=0, restoredThisSession=0;
 let gisLoadPromise=null;
 const connected=()=>googleToken&&Date.now()<tokenExpiry-60000;
 const getClientId=()=>localStorage.getItem("setflow-google-client-id")||"";
-const unsynced=()=>data.records.filter(r=>!r.sheetSynced||r.dirty).length;
+// Legacy-deleted IDs are deliberately excluded from Google sync.
+const pendingWorkout=()=>{const legacy=new Set(data.deletedRecordIds||[]);return data.records.filter(r=>!legacy.has(r.id)&&(r.dirty||!r.sheetSynced)).length};
+const unsynced=()=>pendingWorkout();
 const pendingBody=()=>Array.isArray(data.bodyMeasurements)?data.bodyMeasurements.filter(r=>r.dirty).length:0;
 
 const el=document.getElementById("app"),fmt=n=>{n=Math.max(0,Math.ceil(n));return String(Math.floor(n/60)).padStart(2,"0")+":"+String(n%60).padStart(2,"0")};
@@ -190,11 +192,12 @@ if(getClientId())loadGIS().catch(()=>{});
 if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js").catch(()=>{});
 
 function syncSummary(){
- const n=unsynced()+pendingBody();
- if(syncing)return "同期中…（未同期 "+n+" 件）";
- if(syncError)return "同期エラー："+syncError+(n?"（未同期 "+n+" 件）":"");
- if(!connected())return n?"Google再接続が必要（未同期 "+n+" 件）":"Google未接続";
- return n?"未同期 "+n+" 件":"Googleに同期済み"+(restoredThisSession?"・履歴 "+restoredThisSession+" 件を復元":"");
+ const workout=unsynced(),body=pendingBody(),n=workout+body;
+ const detail=n?"（筋トレ "+workout+"・体組成 "+body+"）":"";
+ if(syncing)return "同期中…（未同期 "+n+" 件"+detail+"）";
+ if(syncError)return "同期エラー："+syncError+(n?"（未同期 "+n+" 件"+detail+"）":"");
+ if(!connected())return n?"Google再接続が必要（未同期 "+n+" 件"+detail+"）":"Google未接続";
+ return n?"未同期 "+n+" 件"+detail:"Googleに同期済み"+(restoredThisSession?"・履歴 "+restoredThisSession+" 件を復元":"");
 }
 function updateSyncUI(){
  const status=document.getElementById("sync-status");if(status)status.textContent=syncSummary();
@@ -318,8 +321,18 @@ async function syncToSheet(){
   for(const r of data.records){
    if(legacyDeleted.has(r.id))continue;
    const existing=cloud.get(r.id);
-   if(!r.dirty&&existing)continue;
-   if(r.deletedAt&&!existing)continue; // New set deleted before any upload: only keep in local trash
+   if(!r.dirty&&existing){
+    // A row confirmed on Google may still carry a stale local sheetSynced=false flag.
+    r.sheetSynced=true;
+    continue;
+   }
+   if(r.deletedAt&&!existing){
+    // Google has confirmed that this cancelled-before-upload set is absent.
+    // Keep it in local trash, but stop reporting it as pending forever.
+    r.dirty=false;
+    r.sheetSynced=true;
+    continue;
+   }
    const values=[r.id,r.at,r.exerciseId,r.exerciseName,r.weight,r.reps,
     r.restSeconds??data.exercises.find(ex=>ex.id===r.exerciseId)?.rest??"",new Date().toISOString(),r.deletedAt?"deleted":"active"];
    const snapshot=JSON.stringify([r.at,r.exerciseId,r.exerciseName,r.weight,r.reps,r.restSeconds,r.deletedAt]);
