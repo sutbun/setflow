@@ -193,11 +193,11 @@ if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js").catch
 
 function syncSummary(){
  const workout=unsynced(),body=pendingBody(),n=workout+body;
- const detail=n?"（筋トレ "+workout+"・体組成 "+body+"）":"";
+ const detail=n?"：筋トレ "+workout+"・体組成 "+body:"";
  if(syncing)return "同期中…（未同期 "+n+" 件"+detail+"）";
  if(syncError)return "同期エラー："+syncError+(n?"（未同期 "+n+" 件"+detail+"）":"");
  if(!connected())return n?"Google再接続が必要（未同期 "+n+" 件"+detail+"）":"Google未接続";
- return n?"未同期 "+n+" 件"+detail:"Googleに同期済み"+(restoredThisSession?"・履歴 "+restoredThisSession+" 件を復元":"");
+ return n?"未同期 "+n+" 件（筋トレ "+workout+"・体組成 "+body+"）":"Googleに同期済み"+(restoredThisSession?"・履歴 "+restoredThisSession+" 件を復元":"");
 }
 function updateSyncUI(){
  const status=document.getElementById("sync-status");if(status)status.textContent=syncSummary();
